@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "stock-terminal",
+  "version": "0.1.0",
+  "identifier": "com.willscharff.stock-terminal",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Stock Terminal",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; connect-src http://localhost:8080 https://your-api.railway.app https://assets.parqet.com https://financialmodelingprep.com https://github.com https://objects.githubusercontent.com; img-src 'self' data: blob: https://assets.parqet.com https://financialmodelingprep.com asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk0N0U1NTJEQTJDMDM5MUIKUldRYk9jQ2lMVlYrbFBka1dFbjRESzZlOWhna055VWxzcm9HdllsdXNCUlgwOVFJcW0wSmhybjMK",
+      "endpoints": [
+        "https://github.com/wilbertsky/stock-terminal/releases/latest/download/latest.json"
+      ],
+      "dialog": true
+    }
+  }
+}

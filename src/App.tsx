@@ -1,0 +1,77 @@
+import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { Sidebar } from "./components/Sidebar";
+import { Login } from "./pages/Login";
+import { Dashboard } from "./pages/Dashboard";
+import { Search } from "./pages/Search";
+import { Portfolio } from "./pages/Portfolio";
+import { Screener } from "./pages/Screener";
+import { Settings } from "./pages/Settings";
+import { AdminFeedback } from "./pages/AdminFeedback";
+import { CommunityPortfolios } from "./pages/CommunityPortfolios";
+import { auth } from "./api/client";
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000 } },
+});
+
+function AppShell({ onLogout }: { onLogout: () => void }) {
+  const meQ = useQuery({ queryKey: ["me"], queryFn: auth.me });
+  const role = meQ.data?.role;
+
+  return (
+    <div className="flex bg-gray-950 min-h-screen text-white">
+      <Sidebar onLogout={onLogout} role={role} />
+      <main className="ml-56 flex-1 p-8 max-w-5xl">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/screener" element={<Screener />} />
+          <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/community" element={<CommunityPortfolios />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route
+            path="/admin/feedback"
+            element={
+              role === "admin" ? <AdminFeedback /> : <Navigate to="/" replace />
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+export default function App() {
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem("token"));
+
+  useEffect(() => {
+    const handler = () => setAuthed(!!localStorage.getItem("token"));
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+
+  function logout() {
+    localStorage.removeItem("token");
+    queryClient.clear();
+    setAuthed(false);
+  }
+
+  if (!authed) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Login onLogin={() => setAuthed(true)} />
+      </QueryClientProvider>
+    );
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppShell onLogout={logout} />
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}
