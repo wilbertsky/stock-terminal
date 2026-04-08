@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Loader2, TrendingUp, Search as SearchIcon, Plus } from "lucide-react";
-import { screenerApi, ScreenerEntry } from "../api/client";
+import { screenerApi, ScreenerEntry, SectorScreenerResponse } from "../api/client";
 import { CompanyLogo } from "../components/CompanyLogo";
 import { AddToPortfolioModal } from "../components/AddToPortfolioModal";
 import { TickerTooltip } from "../components/TickerTooltip";
@@ -36,11 +36,11 @@ function scoreColor(score: number) {
   return "bg-red-400";
 }
 
-function ScoreBar({ label, value, max = 100 }: { label: string; value: number; max?: number }) {
-  const pct = Math.min((value / max) * 100, 100);
+function ScoreBar({ label, value }: { label: string; value: number }) {
+  const pct = Math.min(value, 100);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-500 w-20 shrink-0">{label}</span>
+      <span className="text-xs text-gray-500 w-24 shrink-0 truncate" title={label}>{label}</span>
       <div className="flex-1 bg-gray-800 rounded-full h-1.5">
         <div
           className={`h-1.5 rounded-full transition-all ${scoreColor(pct)}`}
@@ -48,7 +48,7 @@ function ScoreBar({ label, value, max = 100 }: { label: string; value: number; m
         />
       </div>
       <span className="text-xs text-gray-400 w-8 text-right tabular-nums">
-        {max === 9 ? `${value}/9` : Math.round(value)}
+        {Math.round(value)}
       </span>
     </div>
   );
@@ -57,12 +57,15 @@ function ScoreBar({ label, value, max = 100 }: { label: string; value: number; m
 function ScreenerCard({
   entry,
   rank,
+  data,
 }: {
   entry: ScreenerEntry;
   rank: number;
+  data: SectorScreenerResponse;
 }) {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
+  const labels = data.score_labels;
 
   return (
     <>
@@ -81,12 +84,12 @@ function ScreenerCard({
             </TickerTooltip>
           </div>
 
-          {/* Score bars */}
+          {/* Score bars — labels come from the response */}
           <div className="flex-1 min-w-0 space-y-1.5">
-            <ScoreBar label="Piotroski" value={entry.piotroski_score} max={9} />
-            <ScoreBar label="Quality" value={entry.quality_score} />
-            <ScoreBar label="Momentum" value={entry.momentum_score} />
-            <ScoreBar label="Value" value={entry.value_signal} />
+            <ScoreBar label={labels[0] ?? "Score A"} value={entry.score_a} />
+            <ScoreBar label={labels[1] ?? "Score B"} value={entry.score_b} />
+            <ScoreBar label={labels[2] ?? "Score C"} value={entry.score_c} />
+            <ScoreBar label={labels[3] ?? "Score D"} value={entry.score_d} />
           </div>
 
           {/* Composite + tier + actions */}
@@ -143,6 +146,10 @@ export function Screener() {
 
   const sectorLabel = SECTORS.find((s) => s.id === sector)?.label ?? sector;
 
+  const weightsLegend = q.data
+    ? q.data.score_labels.map((l, i) => `${l} ${q.data!.score_weights[i]}`).join(" · ")
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -152,7 +159,7 @@ export function Screener() {
           <h2 className="text-xl font-bold text-white">Sector Screener</h2>
         </div>
         <p className="text-gray-500 text-sm">
-          Top S&P 500 picks by sector, ranked by Piotroski, quality, value, and momentum signals.
+          Top S&P 500 picks by sector, ranked by factor-based composite scores that adapt to each sector's characteristics.
         </p>
       </div>
 
@@ -198,19 +205,23 @@ export function Screener() {
       {q.data && (
         <div className="space-y-4">
           {/* Meta */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm text-gray-400">
               <span className="text-white font-semibold">{q.data.stocks_analyzed}</span> stocks
               analyzed in{" "}
               <span className="text-white font-semibold">{sectorLabel}</span>
+              {" "}·{" "}
+              <span className="text-gray-500">{q.data.scoring_model} model</span>
             </p>
-            <p className="text-xs text-gray-600">Weights: Piotroski 30% · Quality 25% · Value 25% · Momentum 20%</p>
+            {weightsLegend && (
+              <p className="text-xs text-gray-600">Weights: {weightsLegend}</p>
+            )}
           </div>
 
           {/* Cards */}
           <div className="space-y-3">
             {q.data.results.map((entry, i) => (
-              <ScreenerCard key={entry.ticker} entry={entry} rank={i + 1} />
+              <ScreenerCard key={entry.ticker} entry={entry} rank={i + 1} data={q.data!} />
             ))}
           </div>
 

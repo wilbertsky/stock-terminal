@@ -2,7 +2,15 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { Plus, ExternalLink, Building2, Users, Globe } from "lucide-react";
-import { stock, SummaryResponse, PiotroskiResponse, CompanyProfile, CompanyNewsResponse } from "../api/client";
+import {
+  stock,
+  SummaryResponse,
+  PiotroskiResponse,
+  QualityScoreResponse,
+  DividendMetricsResponse,
+  CompanyProfile,
+  CompanyNewsResponse,
+} from "../api/client";
 import { TickerTooltip } from "../components/TickerTooltip";
 import { CompanyLogo } from "../components/CompanyLogo";
 import { SectionHelp } from "../components/SectionHelp";
@@ -26,6 +34,23 @@ const fmt = (n: number | null | undefined, decimals = 2) =>
 
 const pct = (n: number | null | undefined) =>
   n == null ? "—" : `${(n * 100).toFixed(1)}%`;
+
+/** Map FMP profile sector string to our screener model name. */
+function sectorModelName(sector: string | undefined | null): string {
+  if (!sector) return "Standard";
+  const s = sector.toLowerCase();
+  if (s.includes("financial")) return "Financials";
+  if (s.includes("real estate")) return "Real Estate";
+  if (s.includes("energy")) return "Energy";
+  if (s.includes("utilities") || s.includes("consumer staples")) return "Dividend";
+  return "Standard";
+}
+
+/** Piotroski is meaningful for operating businesses — not banks or REITs. */
+function usesPiotroski(sector: string | undefined | null): boolean {
+  const m = sectorModelName(sector);
+  return m === "Standard" || m === "Energy";
+}
 
 
 function RevenueChart({ years }: { years: SummaryResponse["fundamentals"]["years"] }) {
@@ -122,6 +147,238 @@ function CompanyDescription({ text }: { text: string }) {
   );
 }
 
+function ValuationSection({
+  sector,
+  s,
+  quality,
+  dividend,
+}: {
+  sector: string | undefined | null;
+  s: SummaryResponse;
+  quality: QualityScoreResponse | undefined;
+  dividend: DividendMetricsResponse | undefined;
+}) {
+  const model = sectorModelName(sector);
+
+  // Derived metrics computed from existing summary data
+  const recentYear = s.fundamentals.years[s.fundamentals.years.length - 1];
+  const bvps = recentYear?.book_value_per_share ?? s.graham_number?.book_value_per_share ?? null;
+  const pb = bvps && bvps > 0 && s.current_price ? s.current_price / bvps : null;
+  const fcfps = recentYear?.free_cash_flow_per_share ?? null;
+  const fcfYield = fcfps && fcfps > 0 && s.current_price && s.current_price > 0
+    ? (fcfps / s.current_price) * 100
+    : null;
+
+  if (model === "Financials") {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-gray-300">Valuation — Financials</h4>
+          <SectionHelp title="Valuation — Financial Sector">
+            <p>Banks and financial companies have balance sheets where debt is a product, not a burden, so standard DCF and Graham Number models don't apply well. These metrics are more meaningful:</p>
+            <p><span className="text-white font-medium">Price-to-Book (P/B)</span> — Market cap divided by book value (net assets). For banks, P/B below 1 means you're paying less than the company's stated net asset value. Historically, P/B below 1.5 is considered fair value; above 2.5 may be expensive.</p>
+            <p><span className="text-white font-medium">Return on Equity (ROE)</span> — Net income divided by shareholders' equity. Measures how efficiently the company generates profit from its equity base. Above 15% is strong for a financial firm; below 8% is weak.</p>
+            <p><span className="text-white font-medium">Debt-to-Equity</span> — Total debt divided by equity. For non-bank financials this signals leverage risk. Very high D/E (e.g. above 3) warrants scrutiny.</p>
+            <p><span className="text-white font-medium">PEG Ratio</span> — Price-to-Earnings relative to EPS growth rate. Below 1 suggests undervaluation relative to growth; above 2 may be expensive. Less reliable for banks than for industrials.</p>
+          </SectionHelp>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard
+            label="Price-to-Book"
+            value={pb ? fmt(pb) + "×" : "N/A"}
+            sub={pb ? (pb < 1 ? "Below book value" : pb < 1.5 ? "Fair value" : pb < 2.5 ? "Moderate premium" : "Expensive") : "Book value unavailable"}
+            positive={pb ? (pb < 1.5 ? true : pb > 2.5 ? false : null) : null}
+          />
+          <StatCard
+            label="Return on Equity"
+            value={quality?.return_on_equity != null ? pct(quality.return_on_equity) : "N/A"}
+            sub="Net income ÷ equity"
+            positive={quality?.return_on_equity != null ? (quality.return_on_equity >= 0.15 ? true : quality.return_on_equity < 0.08 ? false : null) : null}
+          />
+          <StatCard
+            label="Debt-to-Equity"
+            value={quality?.debt_to_equity != null ? fmt(quality.debt_to_equity) + "×" : "N/A"}
+            sub="Total debt ÷ equity"
+            positive={quality?.debt_to_equity != null ? (quality.debt_to_equity < 1.0 ? true : quality.debt_to_equity > 3.0 ? false : null) : null}
+          />
+          <StatCard
+            label="PEG Ratio"
+            value={s.peg ? fmt(s.peg.peg_ratio) : "N/A"}
+            sub={s.peg ? `P/E ${fmt(s.peg.pe_ratio)} / growth ${fmt(s.peg.earnings_growth_rate_pct)}%` : "Negative or zero growth"}
+            positive={s.peg ? (s.peg.peg_ratio < 1 ? true : s.peg.peg_ratio > 2 ? false : null) : null}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (model === "Real Estate") {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-gray-300">Valuation — Real Estate</h4>
+          <SectionHelp title="Valuation — Real Estate / REITs">
+            <p>REITs (Real Estate Investment Trusts) distribute at least 90% of taxable income as dividends, so traditional earnings-based models like DCF are less meaningful. These metrics better reflect REIT value:</p>
+            <p><span className="text-white font-medium">Price-to-Book (P/B)</span> — Price relative to net asset value (NAV) of the real estate holdings. REITs often trade at a premium or discount to their underlying property values. P/B near or below 1 may represent good value.</p>
+            <p><span className="text-white font-medium">Dividend Yield</span> — Annual dividend divided by stock price, expressed as a percentage. REITs are required to pay out most earnings, so yield is a primary return driver. Yields above 4% are common; context matters — a very high yield may signal financial stress.</p>
+            <p><span className="text-white font-medium">Payout Ratio</span> — Dividends paid as a fraction of earnings. For REITs, payout ratios above 60% are normal and expected. What matters is whether the dividend is growing and covered by funds from operations (FFO).</p>
+            <p><span className="text-white font-medium">Debt-to-Equity</span> — Leverage is central to REIT analysis. REITs typically carry significant debt to finance property acquisitions. Moderate leverage amplifies returns; excessive leverage increases risk in rising rate environments.</p>
+          </SectionHelp>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard
+            label="Price-to-Book"
+            value={pb ? fmt(pb) + "×" : "N/A"}
+            sub={pb ? (pb < 1 ? "Discount to NAV" : pb < 1.5 ? "Near NAV" : "Premium to NAV") : "Book value unavailable"}
+            positive={pb ? (pb < 1.2 ? true : pb > 2.0 ? false : null) : null}
+          />
+          <StatCard
+            label="Dividend Yield"
+            value={dividend?.dividend_yield_pct != null ? `${fmt(dividend.dividend_yield_pct, 1)}%` : "N/A"}
+            sub={dividend?.dividend_per_share != null ? `$${fmt(dividend.dividend_per_share, 2)}/share` : "No dividend data"}
+            positive={dividend?.dividend_yield_pct != null ? (dividend.dividend_yield_pct >= 3 ? true : null) : null}
+          />
+          <StatCard
+            label="Payout Ratio"
+            value={dividend?.payout_ratio != null ? pct(dividend.payout_ratio) : "N/A"}
+            sub={dividend?.is_sustainable != null ? (dividend.is_sustainable ? "Sustainable (<60%)" : "High (>60%)") : "of earnings"}
+            positive={dividend?.payout_ratio != null ? (dividend.payout_ratio < 0.90 ? true : false) : null}
+          />
+          <StatCard
+            label="Debt-to-Equity"
+            value={quality?.debt_to_equity != null ? fmt(quality.debt_to_equity) + "×" : "N/A"}
+            sub="Total debt ÷ equity"
+            positive={quality?.debt_to_equity != null ? (quality.debt_to_equity < 2.0 ? true : quality.debt_to_equity > 4.0 ? false : null) : null}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (model === "Energy") {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-gray-300">Valuation — Energy</h4>
+          <SectionHelp title="Valuation — Energy Sector">
+            <p>Energy companies are capital intensive with earnings tied to commodity price cycles, making traditional DCF less stable. Analysts emphasize cash generation and asset value:</p>
+            <p><span className="text-white font-medium">FCF Yield</span> — Free cash flow per share divided by stock price, expressed as a percentage. This shows how much cash the company generates relative to what you pay. Energy companies with high FCF yield can return cash to shareholders through buybacks and dividends even in low price environments. Above 5% is generally considered attractive.</p>
+            <p><span className="text-white font-medium">Price-to-Book (P/B)</span> — Price relative to the book value of assets (refineries, pipelines, reserves). Energy companies are asset-heavy, so P/B reflects whether you're paying a premium over replacement cost. Below 1.5 is considered fair for most energy companies.</p>
+            <p><span className="text-white font-medium">PEG Ratio</span> — Price-to-Earnings relative to growth rate. Useful in periods of expanding earnings; less reliable during commodity downturns when EPS can swing dramatically.</p>
+            <p><span className="text-white font-medium">Intrinsic Value (DCF)</span> — Simplified DCF estimate. Use as a rough reference only — energy DCF depends heavily on commodity price assumptions which are not modeled here.</p>
+          </SectionHelp>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard
+            label="FCF Yield"
+            value={fcfYield != null ? `${fmt(fcfYield, 1)}%` : "N/A"}
+            sub="FCF/share ÷ price"
+            positive={fcfYield != null ? (fcfYield >= 5 ? true : fcfYield < 1 ? false : null) : null}
+          />
+          <StatCard
+            label="Price-to-Book"
+            value={pb ? fmt(pb) + "×" : "N/A"}
+            sub={pb ? (pb < 1 ? "Below book value" : pb < 1.5 ? "Fair value" : "Premium") : "Book value unavailable"}
+            positive={pb ? (pb < 1.5 ? true : pb > 3.0 ? false : null) : null}
+          />
+          <StatCard
+            label="PEG Ratio"
+            value={s.peg ? fmt(s.peg.peg_ratio) : "N/A"}
+            sub={s.peg ? `P/E ${fmt(s.peg.pe_ratio)} / growth ${fmt(s.peg.earnings_growth_rate_pct)}%` : "Negative or zero growth"}
+            positive={s.peg ? (s.peg.peg_ratio < 1 ? true : s.peg.peg_ratio > 2 ? false : null) : null}
+          />
+          <StatCard
+            label="Intrinsic Value"
+            value={s.intrinsic_value ? `$${fmt(s.intrinsic_value.estimated_intrinsic_value)}` : "N/A"}
+            sub={s.intrinsic_value ? "DCF estimate (rough)" : "Negative or zero EPS growth"}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (model === "Dividend") {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-gray-300">Valuation — Dividend</h4>
+          <SectionHelp title="Valuation — Consumer Staples & Utilities">
+            <p>Consumer staples and utilities are often held for their stable, growing dividends and defensive characteristics rather than growth. Investors use a blend of income and value metrics:</p>
+            <p><span className="text-white font-medium">Dividend Yield</span> — Annual dividend divided by stock price. For staples and utilities, yield is a primary component of total return. Yields in the 2–4% range are typical; above 4% may indicate undervaluation or elevated risk.</p>
+            <p><span className="text-white font-medium">Payout Ratio</span> — Dividends as a fraction of earnings. A payout ratio below 60% suggests the dividend is well-covered and has room to grow. Above 80% may indicate the dividend is stretched and could be cut if earnings fall.</p>
+            <p><span className="text-white font-medium">PEG Ratio</span> — Useful here because staples and utilities often grow slowly but steadily. A low P/E relative to even modest growth (PEG under 1.5) can indicate good value for defensive investors.</p>
+            <p><span className="text-white font-medium">Intrinsic Value (DCF)</span> — Discounted cash flow estimate. More applicable here than for cyclical sectors because earnings are relatively predictable. The margin of safety price (50% of intrinsic value) provides a conservative buy target.</p>
+          </SectionHelp>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard
+            label="Dividend Yield"
+            value={dividend?.dividend_yield_pct != null ? `${fmt(dividend.dividend_yield_pct, 1)}%` : "N/A"}
+            sub={dividend?.dividend_growth_rate_1yr != null ? `1yr growth ${pct(dividend.dividend_growth_rate_1yr)}` : (dividend?.dividend_per_share != null ? `$${fmt(dividend.dividend_per_share, 2)}/share` : "No dividend")}
+            positive={dividend?.dividend_yield_pct != null ? (dividend.dividend_yield_pct >= 2 ? true : null) : null}
+          />
+          <StatCard
+            label="Payout Ratio"
+            value={dividend?.payout_ratio != null ? pct(dividend.payout_ratio) : "N/A"}
+            sub={dividend?.is_sustainable != null ? (dividend.is_sustainable ? "Sustainable (<60%)" : "High payout (>60%)") : "of earnings"}
+            positive={dividend?.payout_ratio != null ? (dividend.payout_ratio < 0.60 ? true : dividend.payout_ratio > 0.80 ? false : null) : null}
+          />
+          <StatCard
+            label="PEG Ratio"
+            value={s.peg ? fmt(s.peg.peg_ratio) : "N/A"}
+            sub={s.peg ? `P/E ${fmt(s.peg.pe_ratio)} / growth ${fmt(s.peg.earnings_growth_rate_pct)}%` : "Negative or zero growth"}
+            positive={s.peg ? (s.peg.peg_ratio < 1.5 ? true : s.peg.peg_ratio > 2.5 ? false : null) : null}
+          />
+          <StatCard
+            label="Intrinsic Value"
+            value={s.intrinsic_value ? `$${fmt(s.intrinsic_value.estimated_intrinsic_value)}` : "N/A"}
+            sub={s.intrinsic_value ? `Safety price $${fmt(s.intrinsic_value.margin_of_safety_price)}` : "Negative or zero EPS growth"}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Standard model — Technology, Healthcare, Communication, Industrials, Materials, Consumer Discretionary
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold text-gray-300">Valuation</h4>
+        <SectionHelp title="Valuation Estimates">
+          <p>These are estimates of what a stock may be <span className="text-white">worth</span> based on fundamentals — not what it is currently trading at.</p>
+          <p><span className="text-white font-medium">Intrinsic Value (DCF)</span> — Discounted Cash Flow. Projects earnings per share (EPS) 10 years forward at the historical growth rate, applies a growth-adjusted P/E ratio, then discounts the result back to today at a 15% required return. This is a simplified version of a standard DCF model. Use as a rough reference alongside other signals.</p>
+          <p><span className="text-white font-medium">Margin of Safety</span> — 50% of the intrinsic value estimate. Benjamin Graham, the father of value investing, recommended buying at a significant discount to intrinsic value to protect against errors in the estimate. This is that buffer price.</p>
+          <p><span className="text-white font-medium">Graham Number</span> — A conservative valuation formula: √(22.5 × EPS × Book Value Per Share). It assumes a fair P/E of 15 and a fair Price-to-Book of 1.5. Works best for stable, asset-heavy companies. High-growth tech and healthcare stocks routinely trade far above their Graham Number, which is expected.</p>
+          <p><span className="text-white font-medium">PEG Ratio</span> — Price-to-Earnings divided by the annual EPS growth rate. A PEG below 1 suggests the stock may be undervalued relative to its growth; above 2 may be overvalued. Invented by Peter Lynch as a quick check on growth-stock valuation.</p>
+        </SectionHelp>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          label="Intrinsic Value"
+          value={s.intrinsic_value ? `$${fmt(s.intrinsic_value.estimated_intrinsic_value)}` : "N/A"}
+          sub={s.intrinsic_value ? "DCF estimate" : "Negative or zero EPS growth"}
+        />
+        <StatCard
+          label="Margin of Safety"
+          value={s.intrinsic_value ? `$${fmt(s.intrinsic_value.margin_of_safety_price)}` : "N/A"}
+          sub={s.intrinsic_value ? "50% of intrinsic" : "Negative or zero EPS growth"}
+        />
+        <StatCard
+          label="Graham Number"
+          value={s.graham_number ? `$${fmt(s.graham_number.graham_number)}` : "N/A"}
+          sub={s.graham_number ? "sqrt(22.5 × EPS × BVPS)" : "Requires positive EPS & book value"}
+        />
+        <StatCard
+          label="PEG Ratio"
+          value={s.peg ? fmt(s.peg.peg_ratio) : "N/A"}
+          sub={s.peg ? `P/E ${fmt(s.peg.pe_ratio)} / growth ${fmt(s.peg.earnings_growth_rate_pct)}%` : "Negative or zero growth"}
+          positive={s.peg ? (s.peg.peg_ratio < 1 ? true : s.peg.peg_ratio > 2 ? false : null) : null}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function Search() {
   const [searchParams] = useSearchParams();
   const [ticker, setTicker] = useState<string | null>(
@@ -149,6 +406,20 @@ export function Search() {
     retry: false,
   });
 
+  const qualityQ = useQuery<QualityScoreResponse, Error>({
+    queryKey: ["quality", ticker],
+    queryFn: () => stock.quality(ticker!),
+    enabled: !!ticker,
+    retry: false,
+  });
+
+  const dividendQ = useQuery<DividendMetricsResponse, Error>({
+    queryKey: ["dividends", ticker],
+    queryFn: () => stock.dividends(ticker!),
+    enabled: !!ticker,
+    retry: false,
+  });
+
   const profileQ = useQuery<CompanyProfile, Error>({
     queryKey: ["profile", ticker],
     queryFn: () => stock.profile(ticker!),
@@ -167,8 +438,11 @@ export function Search() {
     setTicker(symbol.toUpperCase());
   }
 
-  const s = summaryQ.data;
-  const p = piotroskiQ.data;
+  // Only show data when the response ticker matches the selected ticker.
+  // Without this guard, React Query briefly surfaces a previously cached result
+  // for a different ticker while the new request is in-flight.
+  const s = summaryQ.data?.ticker === ticker ? summaryQ.data : undefined;
+  const p = piotroskiQ.data?.ticker === ticker ? piotroskiQ.data : undefined;
 
   return (
     <div className="space-y-6">
@@ -185,8 +459,8 @@ export function Search() {
         loading={summaryQ.isLoading}
       />
 
-      {/* Loading */}
-      {summaryQ.isLoading && (
+      {/* Loading — shown on first load and when switching tickers */}
+      {(summaryQ.isLoading || (summaryQ.isFetching && !s)) && (
         <p className="text-gray-400 text-sm">Fetching data…</p>
       )}
 
@@ -271,67 +545,60 @@ export function Search() {
           {/* Scores */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-gray-300">Score Overview</h4>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300">Score Overview</h4>
+                {profileQ.data?.sector && (
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    {sectorModelName(profileQ.data.sector)} scoring model
+                  </p>
+                )}
+              </div>
               <SectionHelp title="Score Overview">
-                <p>Three composite scores that give a quick health check on the stock from different angles.</p>
-                <p><span className="text-white font-medium">Momentum Score (0–100)</span> measures how the stock has been performing in price relative to the S&P 500 (SPY) over the past 3, 6, and 12 months. A score above 50 means the stock is outperforming the market; below 50 means underperforming.</p>
-                <p><span className="text-white font-medium">Piotroski F-Score (0–9)</span> scores the fundamental financial health of the business across 9 signals covering profitability, leverage, and efficiency. 7–9 is strong, 4–6 is moderate, 0–3 is weak.</p>
-                <p><span className="text-white font-medium">PEG Ratio</span> is a rough gauge of valuation relative to growth. Below 1 is generally considered undervalued; above 2 may indicate an expensive stock relative to its growth rate.</p>
+                <p>Quick-glance signals that adapt to the company's sector. Momentum is shown for all sectors — it's a pure price signal. The third gauge varies by sector:</p>
+                <p><span className="text-white font-medium">Momentum (0–100)</span> — price performance vs the S&P 500 over 3, 6, and 12 months. Above 50 means outperforming; below 50 means underperforming. Relevant for every sector.</p>
+                <p><span className="text-white font-medium">Piotroski F-Score (0–9)</span> — accounting health across 9 signals. Shown for operating businesses only. Not shown for banks or REITs, where balance-sheet structure makes it unreliable.</p>
+                <p><span className="text-white font-medium">PEG Ratio</span> — P/E divided by EPS growth. Shown for Standard and Energy sectors. Not shown for Financials (bank earnings are too cyclical) or dividend-focused sectors.</p>
+                <p><span className="text-white font-medium">Return on Equity</span> — shown instead of PEG for Financials. ROE above 15% is strong for a bank; below 8% is weak.</p>
+                <p><span className="text-white font-medium">Dividend Yield</span> — shown instead of PEG for REITs, Consumer Staples, and Utilities, where income is the primary return driver.</p>
               </SectionHelp>
             </div>
             <div className="flex gap-6 flex-wrap">
-              <ScoreGauge
-                score={s.momentum.momentum_score}
-                label="Momentum"
-              />
-              {p && (
+              <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
+              {p && usesPiotroski(profileQ.data?.sector) && (
                 <ScoreGauge score={p.score} max={9} label="Piotroski" />
               )}
-              {s.peg && (
-                <ScoreGauge
-                  score={s.peg.peg_ratio < 1 ? 80 : s.peg.peg_ratio < 2 ? 50 : 20}
-                  label="PEG"
-                />
-              )}
+              {(() => {
+                const model = sectorModelName(profileQ.data?.sector);
+                if (model === "Financials") {
+                  const roe = qualityQ.data?.return_on_equity;
+                  if (roe == null) return null;
+                  const score = roe >= 0.20 ? 90 : roe >= 0.15 ? 70 : roe >= 0.10 ? 50 : roe >= 0.07 ? 30 : 10;
+                  return <ScoreGauge score={score} label="ROE" />;
+                }
+                if (model === "Real Estate" || model === "Dividend") {
+                  const yld = dividendQ.data?.dividend_yield_pct;
+                  if (yld == null || yld <= 0) return null;
+                  const score = yld >= 5 ? 90 : yld >= 4 ? 75 : yld >= 3 ? 55 : yld >= 2 ? 35 : 15;
+                  return <ScoreGauge score={score} label="Div Yield" />;
+                }
+                // Standard / Energy — PEG
+                return s.peg ? (
+                  <ScoreGauge
+                    score={s.peg.peg_ratio < 1 ? 80 : s.peg.peg_ratio < 2 ? 50 : 20}
+                    label="PEG"
+                  />
+                ) : null;
+              })()}
             </div>
           </div>
 
-          {/* Valuation */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-gray-300">Valuation</h4>
-              <SectionHelp title="Valuation Estimates">
-                <p>These are estimates of what a stock may be <span className="text-white">worth</span> based on fundamentals — not what it is currently trading at.</p>
-                <p><span className="text-white font-medium">Intrinsic Value (DCF)</span> — Discounted Cash Flow. Projects earnings per share (EPS) 10 years forward at the historical growth rate, applies a growth-adjusted P/E ratio, then discounts the result back to today at a 15% required return. This is a simplified version of a standard DCF model.</p>
-                <p><span className="text-white font-medium">Margin of Safety</span> — 50% of the intrinsic value estimate. Benjamin Graham, the father of value investing, recommended buying at a significant discount to intrinsic value to protect against errors in the estimate. This is that buffer price.</p>
-                <p><span className="text-white font-medium">Graham Number</span> — A conservative valuation formula: √(22.5 × EPS × Book Value Per Share). It assumes a fair P/E of 15 and a fair Price-to-Book of 1.5. Works best for stable, asset-heavy companies; tends to undervalue high-growth businesses.</p>
-                <p><span className="text-white font-medium">PEG Ratio</span> — Price-to-Earnings divided by the annual EPS growth rate. A PEG below 1 suggests the stock may be undervalued relative to its growth; above 2 may be overvalued.</p>
-              </SectionHelp>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard
-                label="Intrinsic Value"
-                value={s.intrinsic_value ? `$${fmt(s.intrinsic_value.estimated_intrinsic_value)}` : "N/A"}
-                sub={s.intrinsic_value ? "DCF estimate" : "Negative or zero EPS growth"}
-              />
-              <StatCard
-                label="Margin of Safety"
-                value={s.intrinsic_value ? `$${fmt(s.intrinsic_value.margin_of_safety_price)}` : "N/A"}
-                sub={s.intrinsic_value ? "50% of intrinsic" : "Negative or zero EPS growth"}
-              />
-              <StatCard
-                label="Graham Number"
-                value={s.graham_number ? `$${fmt(s.graham_number.graham_number)}` : "N/A"}
-                sub={s.graham_number ? "sqrt(22.5 × EPS × BVPS)" : "Requires positive EPS & book value"}
-              />
-              <StatCard
-                label="PEG Ratio"
-                value={s.peg ? fmt(s.peg.peg_ratio) : "N/A"}
-                sub={s.peg ? `P/E ${fmt(s.peg.pe_ratio)} / growth ${fmt(s.peg.earnings_growth_rate_pct)}%` : "Negative or zero growth"}
-                positive={s.peg ? (s.peg.peg_ratio < 1 ? true : s.peg.peg_ratio > 2 ? false : null) : null}
-              />
-            </div>
-          </div>
+          {/* Valuation — sector-aware */}
+          <ValuationSection
+            sector={profileQ.data?.sector}
+            s={s}
+            quality={qualityQ.data}
+            dividend={dividendQ.data}
+          />
 
           {/* Growth rates */}
           <div>
@@ -479,8 +746,8 @@ export function Search() {
             </p>
           </div>
 
-          {/* Piotroski */}
-          {p && (
+          {/* Piotroski — hidden for Financials / Real Estate */}
+          {p && usesPiotroski(profileQ.data?.sector) && (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">

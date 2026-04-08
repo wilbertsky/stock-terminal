@@ -169,16 +169,26 @@ export interface StockSearchResult {
 
 export interface ScreenerEntry {
   ticker: string;
-  piotroski_score: number;
-  quality_score: number;
-  momentum_score: number;
-  value_signal: number;
+  /** Score A (0–100) — meaning defined by score_labels[0] */
+  score_a: number;
+  /** Score B (0–100) — meaning defined by score_labels[1] */
+  score_b: number;
+  /** Score C (0–100) — meaning defined by score_labels[2] */
+  score_c: number;
+  /** Score D (0–100) — meaning defined by score_labels[3] */
+  score_d: number;
   composite_score: number;
   score_tier: string;
 }
 
 export interface SectorScreenerResponse {
   sector: string;
+  /** Name of the scoring model used (e.g. "Standard", "Financials", "Real Estate") */
+  scoring_model: string;
+  /** Human-readable labels for score_a, score_b, score_c, score_d */
+  score_labels: string[];
+  /** Percentage weight strings for each score slot */
+  score_weights: string[];
   stocks_analyzed: number;
   results: ScreenerEntry[];
   disclaimer: string;
@@ -211,11 +221,35 @@ export interface CompanyNewsResponse {
   items: NewsItem[];
 }
 
+export interface QualityScoreResponse {
+  ticker: string;
+  gross_margin: number | null;
+  gross_margin_trend: string | null;
+  return_on_equity: number | null;
+  debt_to_equity: number | null;
+  quality_score: number;
+  interpretation: string;
+}
+
+export interface DividendMetricsResponse {
+  ticker: string;
+  dividend_yield_pct: number | null;
+  payout_ratio: number | null;
+  dividend_per_share: number | null;
+  dividend_growth_rate_1yr: number | null;
+  is_sustainable: boolean | null;
+  interpretation: string;
+}
+
 export const stock = {
   summary: (ticker: string) =>
     request<SummaryResponse>(`/api/stock/${ticker}/summary`),
   piotroski: (ticker: string) =>
     request<PiotroskiResponse>(`/api/stock/${ticker}/piotroski`),
+  quality: (ticker: string) =>
+    request<QualityScoreResponse>(`/api/stock/${ticker}/quality`),
+  dividends: (ticker: string) =>
+    request<DividendMetricsResponse>(`/api/stock/${ticker}/dividends`),
   search: (q: string) =>
     request<{ results: StockSearchResult[] }>(`/api/search?q=${encodeURIComponent(q)}`),
   profile: (ticker: string) =>
