@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Terminal</title>
+  <meta name="description" content="A desktop app for fundamental stock analysis — value investing metrics, sector screener, and intrinsic value estimates." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #21262d;
+      --green: #3fb950;
+      --green-dim: #1e3a2a;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    header svg { flex-shrink: 0; }
+    header span { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.02em; }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    /* ── Hero ── */
+    .hero { text-align: center; margin-bottom: 4rem; }
+    .hero h1 {
+      font-size: 2.6rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 1rem;
+    }
+    .hero h1 span { color: var(--green); }
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 2rem;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid var(--green);
+      border-radius: 999px;
+      padding: 0.2rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Downloads ── */
+    .downloads {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .dl-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-decoration: none;
+    }
+    .dl-btn:hover {
+      border-color: var(--accent);
+      background: #1a2233;
+      text-decoration: none;
+    }
+    .dl-btn svg { opacity: 0.8; }
+    .dl-btn small { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
+    .dl-btn.loading { opacity: 0.5; pointer-events: none; }
+
+    .releases-link {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 4rem;
+    }
+
+    /* ── Features ── */
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-bottom: 4rem;
+    }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .feature h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .feature p { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── Metrics table ── */
+    .metrics {
+      margin-bottom: 4rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── Sector models ── */
+    .models {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-bottom: 4rem;
+    }
+    .model {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .model h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .model .sectors { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .model ul { list-style: none; padding: 0; }
+    .model ul li { font-size: 0.82rem; color: var(--muted); padding: 0.2rem 0; display: flex; justify-content: space-between; }
+    .model ul li span { color: var(--green); font-weight: 600; }
+
+    /* ── Note ── */
+    .note {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-bottom: 4rem;
+    }
+    .note strong { color: var(--text); }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3fb950" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+    <polyline points="16 7 22 7 22 13"></polyline>
+  </svg>
+  <span>Stock Terminal</span>
+</header>
+
+<main>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="badge">Open Source &middot; Free</div>
+    <h1>Fundamental analysis<br>for <span>value investors</span></h1>
+    <p>
+      A desktop app built with Tauri + Rust. Search any stock ticker to see
+      intrinsic value estimates, Piotroski F-Score, quality scores, momentum,
+      and sector-specific valuation models — all from a single window.
+    </p>
+
+    <div class="downloads" id="downloads">
+      <a class="dl-btn loading" id="btn-win" href="#" target="_blank" rel="noopener">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.8"/></svg>
+        Windows
+        <small>.msi installer</small>
+      </a>
+      <a class="dl-btn loading" id="btn-mac-arm" href="#" target="_blank" rel="noopener">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        macOS
+        <small>Apple Silicon (.dmg)</small>
+      </a>
+      <a class="dl-btn loading" id="btn-mac-x64" href="#" target="_blank" rel="noopener">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        macOS
+        <small>Intel (.dmg)</small>
+      </a>
+      <a class="dl-btn loading" id="btn-linux" href="#" target="_blank" rel="noopener">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021C7.576.336 3.59 2.541 2.655 5.592c-.9 3.042.218 5.953 2.437 8.044l.031.03c.14.133.287.27.44.41.547.497 1.26 1.09 1.97 1.55.38.244.766.454 1.137.596.362.14.71.218 1.037.218.52 0 .896-.17 1.136-.495.252-.341.39-.842.39-1.49 0-.413-.038-.85-.117-1.3l-.008-.048a9.247 9.247 0 00-.043-.248c.12.047.24.094.36.143.424.174.826.341 1.23.46.375.112.734.168 1.068.168.602 0 1.054-.184 1.338-.543.266-.337.367-.795.367-1.33 0-.61-.155-1.266-.398-1.875a7.48 7.48 0 00-.97-1.688c.516-.17.972-.43 1.348-.786.54-.514.855-1.21.855-2.008 0-1.15-.624-2.082-1.612-2.617C15.73.289 14.174 0 12.504 0zm0 1.201c1.483 0 2.851.272 3.757.755.814.44 1.25 1.08 1.25 1.862 0 .573-.194 1.034-.576 1.396-.375.356-.927.602-1.634.733-.093.017-.185.03-.278.042A4.7 4.7 0 0115 6c0 .11.006.22.018.33.024.226.07.444.134.65a4.67 4.67 0 01-.48-.07 8.84 8.84 0 01-1.084-.405c-.38-.165-.757-.346-1.11-.518-.356-.174-.69-.33-.998-.456l-.003-.001c-.018.123-.033.249-.047.377-.04.378-.06.748-.06 1.087 0 .482.097.848.264 1.078.154.213.38.32.706.32.208 0 .45-.044.71-.133.267-.09.557-.225.862-.4.609-.353 1.254-.877 1.77-1.45.51-.57.87-1.195 1.01-1.832.068.234.1.48.1.735 0 .468-.135.85-.39 1.125-.24.26-.601.408-1.066.408-.27 0-.568-.046-.887-.134-.344-.094-.69-.23-1.063-.398-.63-.285-1.307-.649-1.98-1.03l-.153-.088a6.5 6.5 0 01.086 1.06c0 .576-.113 1.002-.322 1.262-.19.235-.471.35-.848.35-.22 0-.468-.058-.73-.178-.265-.12-.545-.306-.822-.548-.552-.484-1.152-1.22-1.58-1.96C3.617 10.3 3.1 7.88 3.81 5.945c.71-2.094 3.96-3.97 7.77-4.25.313-.022.62-.031.924-.031v-.463zm-1.54 10.18c.065.15.135.297.21.44.326.628.738 1.2 1.175 1.655.434.453.888.776 1.323.878a1.21 1.21 0 01-.158.007c-.175 0-.395-.046-.636-.143-.24-.096-.5-.24-.77-.43-.538-.375-1.1-.91-1.555-1.485a7.07 7.07 0 01-.589-.922z"/></svg>
+        Linux
+        <small>.AppImage (no install)</small>
+      </a>
+    </div>
+
+    <p class="releases-link">
+      All releases and checksums &rarr;
+      <a href="https://github.com/wilbertsky/stock-terminal/releases" target="_blank" rel="noopener">
+        github.com/wilbertsky/stock-terminal/releases
+      </a>
+    </p>
+  </section>
+
+  <!-- Features -->
+  <section>
+    <p class="section-label">What's included</p>
+    <div class="features">
+      <div class="feature">
+        <h3>Intrinsic Value (DCF)</h3>
+        <p>Projects EPS 10 years forward, discounts at 15% required return. Shows margin of safety price at 50% discount.</p>
+      </div>
+      <div class="feature">
+        <h3>Piotroski F-Score</h3>
+        <p>Nine binary signals across profitability, leverage, and efficiency. Scores 7–9 indicate financial strength.</p>
+      </div>
+      <div class="feature">
+        <h3>Quality Score</h3>
+        <p>Composite 0–100 from gross margin, return on equity, and debt-to-equity. Identifies durable competitive advantages.</p>
+      </div>
+      <div class="feature">
+        <h3>Momentum vs S&amp;P 500</h3>
+        <p>3, 6, and 12-month price returns benchmarked against SPY. Score starts at 50 (neutral) and shifts with outperformance.</p>
+      </div>
+      <div class="feature">
+        <h3>Graham Number</h3>
+        <p>&radic;(22.5 &times; EPS &times; BVPS) — Benjamin Graham's conservative intrinsic value estimate from earnings and book value.</p>
+      </div>
+      <div class="feature">
+        <h3>PEG Ratio</h3>
+        <p>Peter Lynch's P/E adjusted for growth. Below 1.0 may indicate undervaluation relative to growth prospects.</p>
+      </div>
+      <div class="feature">
+        <h3>Dividend Analysis</h3>
+        <p>Yield, payout ratio, growth rate, and a sustainability flag. Relevant for income-focused portfolios.</p>
+      </div>
+      <div class="feature">
+        <h3>Sector Screener</h3>
+        <p>Ranks the top large-cap stocks within a sector using a weighted scoring model adapted to the sector's characteristics.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Metrics -->
+  <section class="metrics">
+    <p class="section-label">Fundamental metrics</p>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Years</th><th>Includes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Revenue</td><td>Up to 5</td><td>Annual + CAGR</td></tr>
+        <tr><td>Earnings per Share</td><td>Up to 5</td><td>Annual + CAGR</td></tr>
+        <tr><td>Book Value per Share</td><td>Up to 5</td><td>Annual + CAGR</td></tr>
+        <tr><td>Free Cash Flow per Share</td><td>Up to 5</td><td>Annual + CAGR</td></tr>
+        <tr><td>Return on Invested Capital</td><td>Up to 5</td><td>Annual + CAGR</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Sector models -->
+  <section>
+    <p class="section-label">Sector screener models</p>
+    <div class="models">
+      <div class="model">
+        <h3>Standard</h3>
+        <p class="sectors">Technology · Healthcare · Communication · Consumer Discretionary · Industrials · Materials</p>
+        <ul>
+          <li>Piotroski F-Score <span>30%</span></li>
+          <li>Business Quality <span>25%</span></li>
+          <li>DCF Value Signal <span>25%</span></li>
+          <li>Momentum vs SPY <span>20%</span></li>
+        </ul>
+      </div>
+      <div class="model">
+        <h3>Financials</h3>
+        <p class="sectors">Banks · Insurance · Asset Managers</p>
+        <ul>
+          <li>Return on Equity <span>35%</span></li>
+          <li>Price-to-Book <span>25%</span></li>
+          <li>Momentum vs SPY <span>25%</span></li>
+          <li>Debt Safety <span>15%</span></li>
+        </ul>
+      </div>
+      <div class="model">
+        <h3>Real Estate</h3>
+        <p class="sectors">REITs</p>
+        <ul>
+          <li>Dividend Quality <span>35%</span></li>
+          <li>Price-to-Book <span>25%</span></li>
+          <li>Momentum vs SPY <span>25%</span></li>
+          <li>Debt Safety <span>15%</span></li>
+        </ul>
+      </div>
+      <div class="model">
+        <h3>Energy</h3>
+        <p class="sectors">Oil &amp; Gas · Pipelines</p>
+        <ul>
+          <li>FCF Yield <span>30%</span></li>
+          <li>Momentum vs SPY <span>30%</span></li>
+          <li>Piotroski F-Score <span>25%</span></li>
+          <li>Business Quality <span>15%</span></li>
+        </ul>
+      </div>
+      <div class="model">
+        <h3>Dividend</h3>
+        <p class="sectors">Consumer Staples · Utilities</p>
+        <ul>
+          <li>Dividend Quality <span>30%</span></li>
+          <li>Business Quality <span>25%</span></li>
+          <li>DCF Value Signal <span>25%</span></li>
+          <li>Momentum vs SPY <span>20%</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Disclaimer -->
+  <div class="note">
+    <strong>Educational use only.</strong> All scores and outputs are for informational purposes and do not constitute investment advice, a recommendation to buy or sell any security, or a guarantee of future performance. Always conduct your own research and consult a licensed financial advisor before making investment decisions.
+  </div>
+
+</main>
+
+<footer>
+  Open source &middot;
+  <a href="https://github.com/wilbertsky/stock-terminal" target="_blank" rel="noopener">GitHub</a>
+  &middot; MIT License
+</footer>
+
+<script>
+  // Fetch latest release from GitHub API and wire up download buttons
+  const REPO = "wilbertsky/stock-terminal";
+
+  const patterns = {
+    "btn-win":     (a) => a.name.endsWith(".msi"),
+    "btn-mac-arm": (a) => a.name.includes("aarch64") && a.name.endsWith(".dmg"),
+    "btn-mac-x64": (a) => a.name.includes("x86_64") && a.name.endsWith(".dmg"),
+    "btn-linux":   (a) => a.name.endsWith(".AppImage"),
+  };
+
+  fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+    headers: { Accept: "application/vnd.github+json" }
+  })
+    .then(r => r.json())
+    .then(release => {
+      const assets = release.assets || [];
+      for (const [id, match] of Object.entries(patterns)) {
+        const btn = document.getElementById(id);
+        if (!btn) continue;
+        const asset = assets.find(match);
+        btn.classList.remove("loading");
+        if (asset) {
+          btn.href = asset.browser_download_url;
+        } else {
+          btn.href = release.html_url;
+        }
+      }
+    })
+    .catch(() => {
+      // On failure, point all buttons at the releases page
+      for (const id of Object.keys(patterns)) {
+        const btn = document.getElementById(id);
+        if (btn) {
+          btn.classList.remove("loading");
+          btn.href = `https://github.com/${REPO}/releases`;
+        }
+      }
+    });
+</script>
+
+</body>
+</html>
