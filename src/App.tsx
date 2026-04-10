@@ -23,7 +23,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="flex bg-gray-950 min-h-screen text-white">
       <Sidebar onLogout={onLogout} role={role} />
-      <main className="ml-56 flex-1 p-8 max-w-5xl">
+      <main className="ml-56 flex-1 p-8 min-w-0">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/search" element={<Search />} />
