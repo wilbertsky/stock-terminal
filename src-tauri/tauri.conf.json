@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; connect-src http://localhost:8080 https://your-api.railway.app https://assets.parqet.com https://financialmodelingprep.com https://github.com https://objects.githubusercontent.com; img-src 'self' data: blob: https://assets.parqet.com https://financialmodelingprep.com asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; connect-src http://localhost:8080 https://stockanalysis-production-fbca.up.railway.app https://assets.parqet.com https://financialmodelingprep.com https://github.com https://objects.githubusercontent.com; img-src 'self' data: blob: https://assets.parqet.com https://financialmodelingprep.com asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'"
     }
   },
   "bundle": {
