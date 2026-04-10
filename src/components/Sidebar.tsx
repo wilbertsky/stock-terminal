@@ -37,7 +37,7 @@ export function Sidebar({ onLogout, role }: Props) {
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-800">
         <h1 className="text-white font-bold text-lg tracking-tight flex items-center gap-2">
-          <TrendingUpIcon size={20} className="text-emerald-400" />
+          <TrendingUp size={20} className="text-emerald-400" />
           Stock Terminal
         </h1>
       </div>
