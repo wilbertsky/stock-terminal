@@ -52,6 +52,22 @@ function usesPiotroski(sector: string | undefined | null): boolean {
   return m === "Standard" || m === "Energy";
 }
 
+/** DCF intrinsic value and Graham Number don't apply to banks or REITs. */
+function usesDcfValuation(sector: string | undefined | null): boolean {
+  const m = sectorModelName(sector);
+  return m !== "Financials" && m !== "Real Estate";
+}
+
+function pbScore(pb: number | null): number | null {
+  if (pb == null) return null;
+  return pb <= 1.0 ? 100 : pb <= 1.5 ? 80 : pb <= 2.0 ? 60 : pb <= 3.0 ? 40 : pb <= 5.0 ? 20 : 5;
+}
+
+function debtSafetyScore(de: number | null): number | null {
+  if (de == null) return null;
+  return de < 0.3 ? 100 : de < 0.6 ? 80 : de < 1.0 ? 60 : de < 1.5 ? 40 : de < 2.5 ? 20 : 5;
+}
+
 
 function RevenueChart({ years }: { years: SummaryResponse["fundamentals"]["years"] }) {
   const data = years
@@ -488,41 +504,62 @@ export function Search() {
                   </span>
                 )}
               </div>
-              {s.current_price != null && (s.intrinsic_value || s.graham_number) && (
-                <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
-                  {s.intrinsic_value && (
-                    <span>
-                      vs intrinsic{" "}
-                      <span className={
-                        s.current_price <= s.intrinsic_value.margin_of_safety_price
-                          ? "text-emerald-400"
-                          : s.current_price <= s.intrinsic_value.estimated_intrinsic_value
-                          ? "text-amber-400"
-                          : "text-red-400"
-                      }>
-                        {s.current_price <= s.intrinsic_value.margin_of_safety_price
-                          ? "▼ below margin of safety"
-                          : s.current_price <= s.intrinsic_value.estimated_intrinsic_value
-                          ? "▼ below intrinsic value"
-                          : "▲ above intrinsic value"}
+              {s.current_price != null && (() => {
+                const sector = profileQ.data?.sector;
+                if (!usesDcfValuation(sector)) {
+                  // Financials / Real Estate — show P/B instead of DCF/Graham
+                  const bvps = s.graham_number?.book_value_per_share ?? null;
+                  const pb = bvps && bvps > 0 ? s.current_price / bvps : null;
+                  if (pb == null) return null;
+                  return (
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                      <span>
+                        P/B {pb.toFixed(2)}x{" "}
+                        <span className={pb <= 1.0 ? "text-emerald-400" : pb <= 1.5 ? "text-amber-400" : "text-gray-400"}>
+                          {pb <= 1.0 ? "▼ below book value" : pb <= 1.5 ? "▼ near book value" : "▲ above book value"}
+                        </span>
                       </span>
-                    </span>
-                  )}
-                  {s.intrinsic_value && s.graham_number && <span>·</span>}
-                  {s.graham_number && (
-                    <span>
-                      Graham{" "}
-                      <span className={
-                        s.current_price <= s.graham_number.graham_number
-                          ? "text-emerald-400"
-                          : "text-red-400"
-                      }>
-                        {s.current_price <= s.graham_number.graham_number ? "▼ undervalued" : "▲ overvalued"}
+                    </div>
+                  );
+                }
+                // Standard / Energy / Dividend — show intrinsic & Graham
+                if (!s.intrinsic_value && !s.graham_number) return null;
+                return (
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                    {s.intrinsic_value && (
+                      <span>
+                        vs intrinsic{" "}
+                        <span className={
+                          s.current_price <= s.intrinsic_value.margin_of_safety_price
+                            ? "text-emerald-400"
+                            : s.current_price <= s.intrinsic_value.estimated_intrinsic_value
+                            ? "text-amber-400"
+                            : "text-red-400"
+                        }>
+                          {s.current_price <= s.intrinsic_value.margin_of_safety_price
+                            ? "▼ below margin of safety"
+                            : s.current_price <= s.intrinsic_value.estimated_intrinsic_value
+                            ? "▼ below intrinsic value"
+                            : "▲ above intrinsic value"}
+                        </span>
                       </span>
-                    </span>
-                  )}
-                </div>
-              )}
+                    )}
+                    {s.intrinsic_value && s.graham_number && <span>·</span>}
+                    {s.graham_number && (
+                      <span>
+                        Graham{" "}
+                        <span className={
+                          s.current_price <= s.graham_number.graham_number
+                            ? "text-emerald-400"
+                            : "text-red-400"
+                        }>
+                          {s.current_price <= s.graham_number.graham_number ? "▼ undervalued" : "▲ overvalued"}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             {/* Add to portfolio */}
             <button
@@ -554,40 +591,69 @@ export function Search() {
                 )}
               </div>
               <SectionHelp title="Score Overview">
-                <p>Quick-glance signals that adapt to the company's sector. Momentum is shown for all sectors — it's a pure price signal. The third gauge varies by sector:</p>
-                <p><span className="text-white font-medium">Momentum (0–100)</span> — price performance vs the S&P 500 over 3, 6, and 12 months. Above 50 means outperforming; below 50 means underperforming. Relevant for every sector.</p>
-                <p><span className="text-white font-medium">Piotroski F-Score (0–9)</span> — accounting health across 9 signals. Shown for operating businesses only. Not shown for banks or REITs, where balance-sheet structure makes it unreliable.</p>
-                <p><span className="text-white font-medium">PEG Ratio</span> — P/E divided by EPS growth. Shown for Standard and Energy sectors. Not shown for Financials (bank earnings are too cyclical) or dividend-focused sectors.</p>
-                <p><span className="text-white font-medium">Return on Equity</span> — shown instead of PEG for Financials. ROE above 15% is strong for a bank; below 8% is weak.</p>
-                <p><span className="text-white font-medium">Dividend Yield</span> — shown instead of PEG for REITs, Consumer Staples, and Utilities, where income is the primary return driver.</p>
+                <p>Quick-glance signals that adapt to the company's sector model. Gauges shown vary by sector:</p>
+                <p><span className="text-white font-medium">Momentum (0–100)</span> — price performance vs the S&P 500 over 3, 6, and 12 months. Above 50 means outperforming. Shown for all sectors.</p>
+                <p><span className="text-white font-medium">Piotroski F-Score (0–9)</span> — accounting health across 9 signals. Shown for Standard and Energy sectors only. Not applicable to banks or REITs.</p>
+                <p><span className="text-white font-medium">PEG Ratio</span> — P/E divided by EPS growth. Shown for Standard and Energy sectors.</p>
+                <p><span className="text-white font-medium">Return on Equity</span> — shown for Financials. Above 15% is strong for a bank; below 8% is weak.</p>
+                <p><span className="text-white font-medium">Price/Book</span> — price relative to net asset value. Shown for Financials and Real Estate, where asset value is the primary valuation anchor. Below 1.0 means trading below book value.</p>
+                <p><span className="text-white font-medium">Debt Safety</span> — debt-to-equity tiered score. Shown for Financials and Real Estate, where leverage is a key risk factor.</p>
+                <p><span className="text-white font-medium">Dividend Yield</span> — shown for Real Estate and Dividend sectors, where income is the primary return driver.</p>
               </SectionHelp>
             </div>
             <div className="flex gap-6 flex-wrap">
-              <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
-              {p && usesPiotroski(profileQ.data?.sector) && (
-                <ScoreGauge score={p.score} max={9} label="Piotroski" />
-              )}
               {(() => {
                 const model = sectorModelName(profileQ.data?.sector);
+                const bvps = s.graham_number?.book_value_per_share ?? null;
+                const pb = bvps && bvps > 0 && s.current_price ? s.current_price / bvps : null;
+                const de = qualityQ.data?.debt_to_equity ?? null;
+
                 if (model === "Financials") {
                   const roe = qualityQ.data?.return_on_equity;
-                  if (roe == null) return null;
-                  const score = roe >= 0.20 ? 90 : roe >= 0.15 ? 70 : roe >= 0.10 ? 50 : roe >= 0.07 ? 30 : 10;
-                  return <ScoreGauge score={score} label="ROE" />;
+                  const roeScore = roe != null ? (roe >= 0.20 ? 90 : roe >= 0.15 ? 70 : roe >= 0.10 ? 50 : roe >= 0.07 ? 30 : 10) : null;
+                  return <>
+                    {roeScore != null && <ScoreGauge score={roeScore} label="ROE" />}
+                    {pbScore(pb) != null && <ScoreGauge score={pbScore(pb)!} label="Price/Book" />}
+                    <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
+                    {debtSafetyScore(de) != null && <ScoreGauge score={debtSafetyScore(de)!} label="Debt Safety" />}
+                  </>;
                 }
-                if (model === "Real Estate" || model === "Dividend") {
+
+                if (model === "Real Estate") {
                   const yld = dividendQ.data?.dividend_yield_pct;
-                  if (yld == null || yld <= 0) return null;
-                  const score = yld >= 5 ? 90 : yld >= 4 ? 75 : yld >= 3 ? 55 : yld >= 2 ? 35 : 15;
-                  return <ScoreGauge score={score} label="Div Yield" />;
+                  const yldScore = yld != null && yld > 0 ? (yld >= 5 ? 90 : yld >= 4 ? 75 : yld >= 3 ? 55 : yld >= 2 ? 35 : 15) : null;
+                  return <>
+                    {yldScore != null && <ScoreGauge score={yldScore} label="Div Yield" />}
+                    {pbScore(pb) != null && <ScoreGauge score={pbScore(pb)!} label="Price/Book" />}
+                    <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
+                    {debtSafetyScore(de) != null && <ScoreGauge score={debtSafetyScore(de)!} label="Debt Safety" />}
+                  </>;
                 }
-                // Standard / Energy — PEG
-                return s.peg ? (
-                  <ScoreGauge
-                    score={s.peg.peg_ratio < 1 ? 80 : s.peg.peg_ratio < 2 ? 50 : 20}
-                    label="PEG"
-                  />
-                ) : null;
+
+                // Dividend sectors
+                if (model === "Dividend") {
+                  const yld = dividendQ.data?.dividend_yield_pct;
+                  const yldScore = yld != null && yld > 0 ? (yld >= 5 ? 90 : yld >= 4 ? 75 : yld >= 3 ? 55 : yld >= 2 ? 35 : 15) : null;
+                  return <>
+                    <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
+                    {p && <ScoreGauge score={p.score} max={9} label="Piotroski" />}
+                    {yldScore != null && <ScoreGauge score={yldScore} label="Div Yield" />}
+                  </>;
+                }
+
+                // Standard / Energy
+                return <>
+                  <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
+                  {p && usesPiotroski(profileQ.data?.sector) && (
+                    <ScoreGauge score={p.score} max={9} label="Piotroski" />
+                  )}
+                  {s.peg && (
+                    <ScoreGauge
+                      score={s.peg.peg_ratio < 1 ? 80 : s.peg.peg_ratio < 2 ? 50 : 20}
+                      label="PEG"
+                    />
+                  )}
+                </>;
               })()}
             </div>
           </div>
