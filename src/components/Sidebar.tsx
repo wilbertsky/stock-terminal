@@ -36,8 +36,9 @@ export function Sidebar({ onLogout, role }: Props) {
     <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col h-screen fixed left-0 top-0">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-800">
-        <h1 className="text-white font-bold text-lg tracking-tight">
-          <span className="text-emerald-400">▲</span> Stock Terminal
+        <h1 className="text-white font-bold text-lg tracking-tight flex items-center gap-2">
+          <TrendingUpIcon size={20} className="text-emerald-400" />
+          Stock Terminal
         </h1>
       </div>
 
