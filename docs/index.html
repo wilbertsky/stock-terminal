@@ -379,8 +379,11 @@
 </footer>
 
 <script>
-  // Fetch latest release from GitHub API and wire up download buttons
+  // Fetch releases from GitHub API and wire up download buttons.
+  // Scans all releases (not just /latest) so naming variations like
+  // "v0.1.1-alpha" still resolve to the correct binary assets.
   const REPO = "wilbertsky/stock-terminal";
+  const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
 
   const patterns = {
     "btn-win":     (a) => a.name.endsWith(".msi"),
@@ -389,12 +392,18 @@
     "btn-linux":   (a) => a.name.endsWith(".AppImage"),
   };
 
-  fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+  fetch(`https://api.github.com/repos/${REPO}/releases?per_page=10`, {
     headers: { Accept: "application/vnd.github+json" }
   })
     .then(r => r.json())
-    .then(release => {
-      const assets = release.assets || [];
+    .then(releases => {
+      // Find the first release (newest first) that has at least one binary asset
+      const release = (releases || []).find(r =>
+        (r.assets || []).some(a => Object.values(patterns).some(fn => fn(a)))
+      );
+      if (!release) throw new Error("no release with binaries found");
+
+      const assets = release.assets;
       for (const [id, match] of Object.entries(patterns)) {
         const btn = document.getElementById(id);
         if (!btn) continue;
@@ -413,7 +422,7 @@
         const btn = document.getElementById(id);
         if (btn) {
           btn.classList.remove("loading");
-          btn.href = `https://github.com/${REPO}/releases`;
+          btn.href = RELEASES_PAGE;
         }
       }
     });
