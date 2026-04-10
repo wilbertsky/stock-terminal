@@ -58,6 +58,12 @@ function usesDcfValuation(sector: string | undefined | null): boolean {
   return m !== "Financials" && m !== "Real Estate";
 }
 
+/** Graham Number relies on stable EPS — not reliable for commodity-driven sectors. */
+function usesGrahamNumber(sector: string | undefined | null): boolean {
+  const m = sectorModelName(sector);
+  return m !== "Financials" && m !== "Real Estate" && m !== "Energy";
+}
+
 function pbScore(pb: number | null): number | null {
   if (pb == null) return null;
   return pb <= 1.0 ? 100 : pb <= 1.5 ? 80 : pb <= 2.0 ? 60 : pb <= 3.0 ? 40 : pb <= 5.0 ? 20 : 5;
@@ -544,8 +550,8 @@ export function Search() {
                         </span>
                       </span>
                     )}
-                    {s.intrinsic_value && s.graham_number && <span>·</span>}
-                    {s.graham_number && (
+                    {s.intrinsic_value && s.graham_number && usesGrahamNumber(profileQ.data?.sector) && <span>·</span>}
+                    {s.graham_number && usesGrahamNumber(profileQ.data?.sector) && (
                       <span>
                         Graham{" "}
                         <span className={
