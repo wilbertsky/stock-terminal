@@ -110,7 +110,41 @@
       text-align: center;
       font-size: 0.85rem;
       color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Install notes ── */
+    .install-notes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
       margin-bottom: 4rem;
+      text-align: left;
+    }
+    .install-note {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .install-note h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .install-note p { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .install-note code {
+      display: block;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.78rem;
+      color: var(--green);
+      word-break: break-all;
     }
 
     /* ── Features ── */
@@ -250,6 +284,34 @@
         github.com/wilbertsky/stock-terminal/releases
       </a>
     </p>
+
+    <div class="install-notes">
+      <div class="install-note">
+        <h4>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          macOS — "App is damaged"
+        </h4>
+        <p>macOS blocks unnotarized apps. After moving the .dmg to Applications, open Terminal and run:</p>
+        <code>xattr -cr /Applications/stock-terminal.app</code>
+        <p style="margin-top:0.5rem">Then double-click the app to open it normally.</p>
+      </div>
+      <div class="install-note">
+        <h4>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.8"/></svg>
+          Windows — SmartScreen warning
+        </h4>
+        <p>Windows may show "Windows protected your PC". Click <strong>More info</strong> then <strong>Run anyway</strong> to proceed with the install.</p>
+      </div>
+      <div class="install-note">
+        <h4>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021C7.576.336 3.59 2.541 2.655 5.592c-.9 3.042.218 5.953 2.437 8.044l.031.03c.14.133.287.27.44.41.547.497 1.26 1.09 1.97 1.55.38.244.766.454 1.137.596.362.14.71.218 1.037.218.52 0 .896-.17 1.136-.495.252-.341.39-.842.39-1.49 0-.413-.038-.85-.117-1.3l-.008-.048a9.247 9.247 0 00-.043-.248c.12.047.24.094.36.143.424.174.826.341 1.23.46.375.112.734.168 1.068.168.602 0 1.054-.184 1.338-.543.266-.337.367-.795.367-1.33 0-.61-.155-1.266-.398-1.875a7.48 7.48 0 00-.97-1.688c.516-.17.972-.43 1.348-.786.54-.514.855-1.21.855-2.008 0-1.15-.624-2.082-1.612-2.617C15.73.289 14.174 0 12.504 0z"/></svg>
+          Linux — AppImage
+        </h4>
+        <p>Make the file executable before running:</p>
+        <code>chmod +x stock-terminal_*.AppImage</code>
+        <p style="margin-top:0.5rem">Then double-click or run it directly from the terminal.</p>
+      </div>
+    </div>
   </section>
 
   <!-- Features -->
