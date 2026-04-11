@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Loader2, TrendingUp, Search as SearchIcon, Plus } from "lucide-react";
@@ -135,7 +135,13 @@ function ScreenerCard({
 }
 
 export function Screener() {
-  const [sector, setSector] = useState("technology");
+  const [sector, setSector] = useState(
+    () => localStorage.getItem("lastSector") ?? "technology"
+  );
+
+  useEffect(() => {
+    localStorage.setItem("lastSector", sector);
+  }, [sector]);
 
   const q = useQuery({
     queryKey: ["screener", sector],

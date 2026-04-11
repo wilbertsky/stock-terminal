@@ -404,7 +404,7 @@ function ValuationSection({
 export function Search() {
   const [searchParams] = useSearchParams();
   const [ticker, setTicker] = useState<string | null>(
-    () => searchParams.get("ticker")?.toUpperCase() ?? null
+    () => searchParams.get("ticker")?.toUpperCase() ?? localStorage.getItem("lastTicker") ?? null
   );
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
 
@@ -413,6 +413,11 @@ export function Search() {
     const t = searchParams.get("ticker")?.toUpperCase() ?? null;
     if (t) setTicker(t);
   }, [searchParams]);
+
+  // Persist last searched ticker across navigation
+  useEffect(() => {
+    if (ticker) localStorage.setItem("lastTicker", ticker);
+  }, [ticker]);
 
   const summaryQ = useQuery<SummaryResponse, Error>({
     queryKey: ["summary", ticker],
