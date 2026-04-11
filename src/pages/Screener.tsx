@@ -40,7 +40,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.min(value, 100);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-500 shrink-0 min-w-16">{label}</span>
+      <span className="text-xs text-gray-500 shrink-0 w-36 whitespace-nowrap">{label}</span>
       <div className="flex-1 bg-gray-800 rounded-full h-1.5">
         <div
           className={`h-1.5 rounded-full transition-all ${scoreColor(pct)}`}
