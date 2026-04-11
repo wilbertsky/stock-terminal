@@ -48,9 +48,15 @@ export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem("token"));
 
   useEffect(() => {
-    const handler = () => setAuthed(!!localStorage.getItem("token"));
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
+    const storageHandler = () => setAuthed(!!localStorage.getItem("token"));
+    window.addEventListener("storage", storageHandler);
+    return () => window.removeEventListener("storage", storageHandler);
+  }, []);
+
+  useEffect(() => {
+    const expiredHandler = () => logout();
+    window.addEventListener("auth:expired", expiredHandler);
+    return () => window.removeEventListener("auth:expired", expiredHandler);
   }, []);
 
   function logout() {

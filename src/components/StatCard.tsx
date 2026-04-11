@@ -16,13 +16,13 @@ export function StatCard({ label, value, sub, positive, className = "" }: Props)
 
   return (
     <div
-      className={`bg-gray-900 border border-gray-800 rounded-xl p-4 ${className}`}
+      className={`bg-gray-900 border border-gray-800 rounded-xl p-4 min-w-0 ${className}`}
     >
-      <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+      <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 truncate">
         {label}
       </p>
-      <p className={`text-2xl font-bold ${valueColor}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+      <p className={`text-xl font-bold truncate ${valueColor}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-500 mt-1 truncate">{sub}</p>}
     </div>
   );
 }

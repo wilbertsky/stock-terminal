@@ -11,6 +11,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      window.dispatchEvent(new Event("auth:expired"));
+    }
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error ?? res.statusText);
   }
@@ -279,10 +282,26 @@ export interface HoldingPerformance {
   return_pct: number;
 }
 
+export interface RealizedGainRow {
+  id: string;
+  ticker: string;
+  shares: number;
+  cost_per_share: number;
+  sale_price: number;
+  realized_gain: number;
+  sold_at: string;
+}
+
+export interface RealizedGainsSummary {
+  rows: RealizedGainRow[];
+  total_realized_gain: number;
+}
+
 export interface PortfolioPerformanceResponse {
   portfolio: PortfolioRow;
   holdings: HoldingPerformance[];
   total_return_pct: number | null;
+  realized: RealizedGainsSummary;
 }
 
 export interface ImportRowResult {
@@ -342,6 +361,21 @@ export const portfolioApi = {
       method: "DELETE",
     }),
 
+  sellHolding: (
+    portfolioId: string,
+    holdingId: string,
+    shares: number,
+    price?: number,
+    date?: string
+  ) =>
+    request<RealizedGainRow>(
+      `/api/portfolio/${portfolioId}/holdings/${holdingId}/sell`,
+      {
+        method: "POST",
+        body: JSON.stringify({ shares, price: price ?? null, date: date ?? null }),
+      }
+    ),
+
   getPublic: (shareToken: string) =>
     request<PortfolioPerformanceResponse>(
       `/api/portfolio/public/${shareToken}`
@@ -356,6 +390,9 @@ export interface PublicPortfolioSummary {
   owner: string;
   holdings: HoldingPerformance[];
   total_return_pct: number | null;
+  total_unrealized_gain: number;
+  realized: RealizedGainsSummary;
+  combined_gain: number;
 }
 
 export const communityApi = {

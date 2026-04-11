@@ -4,6 +4,7 @@ import {
   portfolioApi,
   PortfolioRow,
   PortfolioPerformanceResponse,
+  HoldingPerformance,
 } from "../api/client";
 import { CompanyLogo } from "../components/CompanyLogo";
 import { TickerTooltip } from "../components/TickerTooltip";
@@ -20,10 +21,183 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { Plus, Trash2, ChevronRight, Upload, CheckCircle, XCircle } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  ChevronRight,
+  Upload,
+  CheckCircle,
+  XCircle,
+  TrendingDown,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 const COLORS = ["#34d399", "#818cf8", "#f472b6", "#fb923c", "#38bdf8", "#a78bfa"];
 
+// ── Sell Modal ────────────────────────────────────────────────────────────────
+
+function SellModal({
+  portfolioId,
+  holding,
+  onClose,
+}: {
+  portfolioId: string;
+  holding: HoldingPerformance;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [shares, setShares] = useState(
+    holding.shares != null ? String(holding.shares) : ""
+  );
+  const [price, setPrice] = useState("");
+  const [date, setDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSell(e: React.FormEvent) {
+    e.preventDefault();
+    const parsedShares = parseFloat(shares);
+    if (!parsedShares || parsedShares <= 0) {
+      setError("Enter a positive number of shares.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await portfolioApi.sellHolding(
+        portfolioId,
+        holding.id,
+        parsedShares,
+        price ? parseFloat(price) : undefined,
+        date || undefined
+      );
+      qc.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sale failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const estGain =
+    shares && price
+      ? (parseFloat(price) - holding.price_at_add) * parseFloat(shares)
+      : null;
+  const marketGain =
+    shares
+      ? (holding.current_price - holding.price_at_add) * parseFloat(shares)
+      : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        <h3 className="text-white font-bold text-base mb-4">
+          Sell {holding.ticker}
+        </h3>
+
+        <form onSubmit={handleSell} className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Shares to sell</label>
+            <input
+              value={shares}
+              onChange={(e) => setShares(e.target.value)}
+              type="number"
+              min="0.000001"
+              step="any"
+              placeholder={holding.shares != null ? String(holding.shares) : "e.g. 10"}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+              required
+            />
+            {holding.shares != null && (
+              <p className="text-xs text-gray-600 mt-1">
+                Currently holding {holding.shares} shares
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">
+              Sale price per share{" "}
+              <span className="text-gray-600">(leave blank for today's market price)</span>
+            </label>
+            <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              type="number"
+              min="0"
+              step="any"
+              placeholder={`Market: $${holding.current_price.toFixed(2)}`}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">
+              Sale date{" "}
+              <span className="text-gray-600">(leave blank for today)</span>
+            </label>
+            <input
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              type="date"
+              max={new Date().toISOString().split("T")[0]}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 [color-scheme:dark]"
+            />
+          </div>
+
+          {/* Estimated P&L preview */}
+          {(estGain !== null || marketGain !== null) && (
+            <div className="bg-gray-800/60 rounded-lg px-3 py-2 text-xs space-y-1">
+              {marketGain !== null && !price && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Est. at market price</span>
+                  <span className={marketGain >= 0 ? "text-emerald-400" : "text-red-400"}>
+                    {marketGain >= 0 ? "+" : ""}${marketGain.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {estGain !== null && price && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Est. realized gain</span>
+                  <span className={estGain >= 0 ? "text-emerald-400" : "text-red-400"}>
+                    {estGain >= 0 ? "+" : ""}${estGain.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-gray-500">
+                <span>Cost basis</span>
+                <span>${holding.price_at_add.toFixed(2)}/share</span>
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg py-2 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-400 disabled:opacity-50 rounded-lg py-2 transition-colors"
+            >
+              {saving ? "Recording…" : "Record Sale"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Portfolio Detail ──────────────────────────────────────────────────────────
 
 function PortfolioDetail({ id }: { id: string }) {
   const qc = useQueryClient();
@@ -31,6 +205,8 @@ function PortfolioDetail({ id }: { id: string }) {
   const [addShares, setAddShares] = useState("");
   const [addDate, setAddDate] = useState("");
   const [adding, setAdding] = useState(false);
+  const [sellHolding, setSellHolding] = useState<HoldingPerformance | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
 
   // CSV import state
   const [importResults, setImportResults] = useState<
@@ -107,7 +283,8 @@ function PortfolioDetail({ id }: { id: string }) {
     );
   if (!q.data) return null;
 
-  const { portfolio, holdings, total_return_pct } = q.data;
+  const { portfolio, holdings, total_return_pct, realized } = q.data;
+  const hasRealized = realized.rows.length > 0;
 
   // Pie chart data by ticker weight
   const pieData = holdings
@@ -131,21 +308,25 @@ function PortfolioDetail({ id }: { id: string }) {
   return (
     <div className="space-y-5">
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Holdings" value={holdings.length} />
         <StatCard
-          label="Holdings"
-          value={holdings.length}
-        />
-        <StatCard
-          label="Total Return"
+          label="Unrealized Return"
           value={
             total_return_pct != null
               ? `${total_return_pct >= 0 ? "+" : ""}${total_return_pct.toFixed(2)}%`
               : "—"
           }
-          positive={
-            total_return_pct != null ? total_return_pct >= 0 : null
+          positive={total_return_pct != null ? total_return_pct >= 0 : null}
+        />
+        <StatCard
+          label="Realized P&L"
+          value={
+            hasRealized
+              ? `${realized.total_realized_gain >= 0 ? "+" : ""}$${Math.abs(realized.total_realized_gain).toFixed(2)}`
+              : "—"
           }
+          positive={hasRealized ? realized.total_realized_gain >= 0 : null}
         />
         <StatCard
           label="Visibility"
@@ -172,10 +353,7 @@ function PortfolioDetail({ id }: { id: string }) {
                   paddingAngle={3}
                 >
                   {pieData.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={COLORS[i % COLORS.length]}
-                    />
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -191,10 +369,7 @@ function PortfolioDetail({ id }: { id: string }) {
             </ResponsiveContainer>
             <div className="flex flex-wrap gap-2 mt-2">
               {pieData.map((d, i) => (
-                <span
-                  key={d.name}
-                  className="flex items-center gap-1 text-xs text-gray-400"
-                >
+                <span key={d.name} className="flex items-center gap-1 text-xs text-gray-400">
                   <span
                     className="w-2 h-2 rounded-full"
                     style={{ background: COLORS[i % COLORS.length] }}
@@ -251,7 +426,7 @@ function PortfolioDetail({ id }: { id: string }) {
       {/* Holdings table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-          <h5 className="text-sm font-semibold text-gray-300">Holdings</h5>
+          <h5 className="text-sm font-semibold text-gray-300">Open Positions</h5>
         </div>
         {holdings.length === 0 ? (
           <p className="text-gray-500 text-sm px-4 py-6 text-center">
@@ -262,7 +437,7 @@ function PortfolioDetail({ id }: { id: string }) {
             <thead>
               <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
                 <th className="text-left px-4 py-2">Ticker</th>
-                <th className="text-right px-4 py-2">Add Price</th>
+                <th className="text-right px-4 py-2">Cost</th>
                 <th className="text-right px-4 py-2">Current</th>
                 <th className="text-right px-4 py-2">Return</th>
                 <th className="text-right px-4 py-2">Shares</th>
@@ -299,12 +474,22 @@ function PortfolioDetail({ id }: { id: string }) {
                     {h.shares ?? "—"}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <button
-                      onClick={() => removeMut.mutate({ hId: h.id })}
-                      className="text-gray-600 hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => setSellHolding(h)}
+                        className="text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 hover:border-amber-500/40 transition-colors"
+                        title="Record sale"
+                      >
+                        Sell
+                      </button>
+                      <button
+                        onClick={() => removeMut.mutate({ hId: h.id })}
+                        className="text-gray-600 hover:text-red-400 transition-colors"
+                        title="Remove holding"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -387,9 +572,7 @@ function PortfolioDetail({ id }: { id: string }) {
                   <XCircle size={13} className="text-red-400 flex-shrink-0" />
                 )}
                 <span className="font-medium text-white w-16">{r.ticker}</span>
-                <span className={r.ok ? "text-gray-400" : "text-red-400"}>
-                  {r.msg}
-                </span>
+                <span className={r.ok ? "text-gray-400" : "text-red-400"}>{r.msg}</span>
               </div>
             ))}
             {importing && (
@@ -398,9 +581,98 @@ function PortfolioDetail({ id }: { id: string }) {
           </div>
         )}
       </div>
+
+      {/* Closed Positions */}
+      {hasRealized && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowClosed((v) => !v)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800/40 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <TrendingDown size={14} className="text-gray-500" />
+              <h5 className="text-sm font-semibold text-gray-300">Closed Positions</h5>
+              <span className="text-xs text-gray-600">({realized.rows.length})</span>
+              <span
+                className={`text-xs font-semibold ml-1 ${
+                  realized.total_realized_gain >= 0 ? "text-emerald-400" : "text-red-400"
+                }`}
+              >
+                {realized.total_realized_gain >= 0 ? "+" : ""}$
+                {Math.abs(realized.total_realized_gain).toFixed(2)} total
+              </span>
+            </div>
+            {showClosed ? (
+              <ChevronUp size={14} className="text-gray-500" />
+            ) : (
+              <ChevronDown size={14} className="text-gray-500" />
+            )}
+          </button>
+
+          {showClosed && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-500 uppercase border-t border-b border-gray-800">
+                  <th className="text-left px-4 py-2">Ticker</th>
+                  <th className="text-right px-4 py-2">Shares</th>
+                  <th className="text-right px-4 py-2">Cost</th>
+                  <th className="text-right px-4 py-2">Sale</th>
+                  <th className="text-right px-4 py-2">Gain / Loss</th>
+                  <th className="text-right px-4 py-2">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {realized.rows.map((r) => (
+                  <tr
+                    key={r.id}
+                    className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors"
+                  >
+                    <td className="px-4 py-2.5">
+                      <span className="flex items-center gap-2">
+                        <CompanyLogo ticker={r.ticker} size="sm" />
+                        <span className="font-semibold text-white">{r.ticker}</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-gray-400">
+                      {r.shares.toFixed(r.shares % 1 === 0 ? 0 : 4)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-gray-400">
+                      ${r.cost_per_share.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-gray-300">
+                      ${r.sale_price.toFixed(2)}
+                    </td>
+                    <td
+                      className={`px-4 py-2.5 text-right font-semibold ${
+                        r.realized_gain >= 0 ? "text-emerald-400" : "text-red-400"
+                      }`}
+                    >
+                      {r.realized_gain >= 0 ? "+" : ""}${r.realized_gain.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-gray-500 text-xs">
+                      {new Date(r.sold_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Sell Modal */}
+      {sellHolding && (
+        <SellModal
+          portfolioId={id}
+          holding={sellHolding}
+          onClose={() => setSellHolding(null)}
+        />
+      )}
     </div>
   );
 }
+
+// ── Portfolio Page ────────────────────────────────────────────────────────────
 
 export function Portfolio() {
   const qc = useQueryClient();
@@ -459,9 +731,7 @@ export function Portfolio() {
               onClick={() => setSelectedId(p.id)}
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {p.name}
-                </p>
+                <p className="text-sm font-medium text-white truncate">{p.name}</p>
                 <p className="text-xs text-gray-500">
                   {p.is_public ? "Public" : "Private"}
                 </p>
