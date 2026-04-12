@@ -244,14 +244,7 @@ function PortfolioDetail({ id }: { id: string }) {
     },
   });
 
-  // Scroll active row into view when activated from donut hover
-  useEffect(() => {
-    if (activeTicker && rowRefs.current[activeTicker]) {
-      rowRefs.current[activeTicker]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
-  }, [activeTicker]);
-
-  async function addHolding(e: React.FormEvent) {
+async function addHolding(e: React.FormEvent) {
     e.preventDefault();
     const ticker = addTicker.trim().toUpperCase();
     if (!ticker) return;
