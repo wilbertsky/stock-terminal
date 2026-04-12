@@ -62,6 +62,12 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Sanitize signing key
+        shell: bash
+        run: |
+          KEY=$(printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | tr -d '[:space:]')
+          echo "TAURI_SIGNING_PRIVATE_KEY=$KEY" >> "$GITHUB_ENV"
+
       - name: Install frontend dependencies
         run: npm ci
 
