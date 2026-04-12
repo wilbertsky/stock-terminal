@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { auth } from "../api/client";
+import { CheckCircle } from "lucide-react";
+import { getVersion } from "@tauri-apps/api/app";
 
 export function Settings() {
   const qc = useQueryClient();
@@ -8,6 +10,20 @@ export function Settings() {
 
   const [nameInput, setNameInput] = useState("");
   const [nameSaved, setNameSaved] = useState(false);
+
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwSaved, setPwSaved] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "up-to-date">("idle");
+
+  useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window)) return;
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
 
   // Sync input with fetched value on first load
   useEffect(() => {
@@ -24,6 +40,41 @@ export function Settings() {
       setTimeout(() => setNameSaved(false), 2000);
     },
   });
+
+  const pwMut = useMutation({
+    mutationFn: ({ cur, nw }: { cur: string; nw: string }) =>
+      auth.changePassword(cur, nw),
+    onSuccess: () => {
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      setPwError(null);
+      setPwSaved(true);
+      setTimeout(() => setPwSaved(false), 3000);
+    },
+    onError: (e: Error) => setPwError(e.message),
+  });
+
+  async function checkForUpdates() {
+    if (!("__TAURI_INTERNALS__" in window)) return;
+    setUpdateStatus("checking");
+    try {
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const update = await check();
+      // If an update was found, dialog: true in tauri.conf.json handles the rest.
+      // If null, there's nothing newer.
+      setUpdateStatus(update ? "idle" : "up-to-date");
+      if (!update) setTimeout(() => setUpdateStatus("idle"), 3000);
+    } catch {
+      setUpdateStatus("idle");
+    }
+  }
+
+  function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwError(null);
+    if (newPw.length < 8) { setPwError("Password must be at least 8 characters."); return; }
+    if (newPw !== confirmPw) { setPwError("Passwords don't match."); return; }
+    pwMut.mutate({ cur: currentPw, nw: newPw });
+  }
 
   function saveName(e: React.FormEvent) {
     e.preventDefault();
@@ -76,6 +127,46 @@ export function Settings() {
         )}
       </div>
 
+      {/* Change password */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-300">Change Password</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Minimum 8 characters.
+          </p>
+        </div>
+        <form onSubmit={changePassword} className="space-y-2">
+          {[
+            { label: "Current password", value: currentPw, set: setCurrentPw },
+            { label: "New password",     value: newPw,     set: setNewPw     },
+            { label: "Confirm new",      value: confirmPw, set: setConfirmPw },
+          ].map(({ label, value, set }) => (
+            <input
+              key={label}
+              type="password"
+              placeholder={label}
+              value={value}
+              onChange={(e) => set(e.target.value)}
+              required
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
+          ))}
+          {pwError && <p className="text-red-400 text-xs">{pwError}</p>}
+          {pwSaved && (
+            <p className="text-emerald-400 text-xs flex items-center gap-1">
+              <CheckCircle size={12} /> Password updated.
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={pwMut.isPending}
+            className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-gray-950 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
+          >
+            {pwMut.isPending ? "Updating…" : "Update Password"}
+          </button>
+        </form>
+      </div>
+
       {/* Account info */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
         <h3 className="text-sm font-semibold text-gray-300">Account</h3>
@@ -90,6 +181,31 @@ export function Settings() {
           </span>
         </div>
       </div>
+
+      {/* App updates — only shown inside Tauri */}
+      {appVersion !== null && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-gray-300">App Updates</h3>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Current version</span>
+            <span className="text-xs text-gray-400 font-mono">v{appVersion}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={checkForUpdates}
+              disabled={updateStatus === "checking"}
+              className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+            >
+              {updateStatus === "checking" ? "Checking…" : "Check for updates"}
+            </button>
+            {updateStatus === "up-to-date" && (
+              <p className="text-emerald-400 text-xs flex items-center gap-1">
+                <CheckCircle size={12} /> You're up to date.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Data sources */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">

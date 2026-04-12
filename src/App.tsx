@@ -59,6 +59,16 @@ export default function App() {
     return () => window.removeEventListener("auth:expired", expiredHandler);
   }, []);
 
+  // Check for app updates on startup (no-op outside of Tauri).
+  // dialog: true in tauri.conf.json means Tauri shows a native prompt and
+  // handles download + relaunch automatically when an update is found.
+  useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window)) return;
+    import("@tauri-apps/plugin-updater")
+      .then(({ check }) => check())
+      .catch(() => {});
+  }, []);
+
   function logout() {
     localStorage.removeItem("token");
     queryClient.clear();

@@ -62,6 +62,24 @@ export const auth = {
       method: "PUT",
       body: JSON.stringify({ fmp_key }),
     }),
+
+  changePassword: (current_password: string, new_password: string) =>
+    request<void>("/api/auth/password", {
+      method: "PATCH",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+
+  forgotPassword: (email: string) =>
+    request<void>("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, new_password: string) =>
+    request<void>("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password }),
+    }),
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────────

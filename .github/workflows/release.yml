@@ -78,6 +78,6 @@ jobs:
             - **Windows:** download the `.msi` installer
             - **macOS:** download the `.dmg` file matching your chip (Apple Silicon or Intel)
             - **Linux:** download the `.AppImage` (no install needed, just make executable and run)
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
