@@ -18,8 +18,9 @@ export function Settings() {
   const [pwError, setPwError] = useState<string | null>(null);
 
   const [appVersion, setAppVersion] = useState<string | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "up-to-date" | "error">("idle");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date" | "error">("idle");
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
 
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
@@ -66,11 +67,28 @@ export function Settings() {
       const { check } = await import("@tauri-apps/plugin-updater");
       const update = await check();
       if (update) {
-        // dialog: true in tauri.conf.json handles the rest automatically.
-        setUpdateStatus("idle");
+        setAvailableVersion(update.version ?? null);
+        setUpdateStatus("available");
       } else {
         setUpdateStatus("up-to-date");
         setTimeout(() => setUpdateStatus("idle"), 3000);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setUpdateError(msg);
+      setUpdateStatus("error");
+    }
+  }
+
+  async function installUpdate() {
+    setUpdateStatus("downloading");
+    try {
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      const update = await check();
+      if (update) {
+        await update.downloadAndInstall();
+        await relaunch();
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -202,17 +220,35 @@ export function Settings() {
             <span className="text-xs text-gray-400 font-mono">v{appVersion}</span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={checkForUpdates}
-              disabled={updateStatus === "checking"}
-              className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-            >
-              {updateStatus === "checking" ? "Checking…" : "Check for updates"}
-            </button>
+            {updateStatus !== "available" && updateStatus !== "downloading" && (
+              <button
+                onClick={checkForUpdates}
+                disabled={updateStatus === "checking"}
+                className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {updateStatus === "checking" ? "Checking…" : "Check for updates"}
+              </button>
+            )}
             {updateStatus === "up-to-date" && (
               <p className="text-emerald-400 text-xs flex items-center gap-1">
                 <CheckCircle size={12} /> You're up to date.
               </p>
+            )}
+            {updateStatus === "available" && (
+              <div className="flex items-center gap-3">
+                <span className="text-yellow-400 text-xs">
+                  v{availableVersion} available
+                </span>
+                <button
+                  onClick={installUpdate}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-gray-950 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Update &amp; Restart
+                </button>
+              </div>
+            )}
+            {updateStatus === "downloading" && (
+              <p className="text-gray-400 text-xs">Downloading update…</p>
             )}
           </div>
           {updateStatus === "error" && updateError && (
