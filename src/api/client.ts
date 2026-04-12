@@ -351,6 +351,12 @@ export const portfolioApi = {
   delete: (id: string) =>
     request<void>(`/api/portfolio/${id}`, { method: "DELETE" }),
 
+  updateVisibility: (id: string, is_public: boolean) =>
+    request<PortfolioRow>(`/api/portfolio/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_public }),
+    }),
+
   addHolding: (id: string, ticker: string, shares?: number, date?: string) =>
     request<HoldingPerformance>(`/api/portfolio/${id}/holdings`, {
       method: "POST",
