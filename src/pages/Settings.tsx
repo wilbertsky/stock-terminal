@@ -18,7 +18,8 @@ export function Settings() {
   const [pwError, setPwError] = useState<string | null>(null);
 
   const [appVersion, setAppVersion] = useState<string | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "up-to-date">("idle");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "up-to-date" | "error">("idle");
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
@@ -54,17 +55,27 @@ export function Settings() {
   });
 
   async function checkForUpdates() {
-    if (!("__TAURI_INTERNALS__" in window)) return;
+    if (!("__TAURI_INTERNALS__" in window)) {
+      setUpdateError("Not running inside Tauri — updater unavailable.");
+      setUpdateStatus("error");
+      return;
+    }
     setUpdateStatus("checking");
+    setUpdateError(null);
     try {
       const { check } = await import("@tauri-apps/plugin-updater");
       const update = await check();
-      // If an update was found, dialog: true in tauri.conf.json handles the rest.
-      // If null, there's nothing newer.
-      setUpdateStatus(update ? "idle" : "up-to-date");
-      if (!update) setTimeout(() => setUpdateStatus("idle"), 3000);
-    } catch {
-      setUpdateStatus("idle");
+      if (update) {
+        // dialog: true in tauri.conf.json handles the rest automatically.
+        setUpdateStatus("idle");
+      } else {
+        setUpdateStatus("up-to-date");
+        setTimeout(() => setUpdateStatus("idle"), 3000);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setUpdateError(msg);
+      setUpdateStatus("error");
     }
   }
 
@@ -204,6 +215,11 @@ export function Settings() {
               </p>
             )}
           </div>
+          {updateStatus === "error" && updateError && (
+            <p className="text-red-400 text-xs break-all bg-red-500/10 rounded px-2 py-1.5">
+              {updateError}
+            </p>
+          )}
         </div>
       )}
 
