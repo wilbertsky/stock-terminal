@@ -40,7 +40,8 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.min(value, 100);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-500 shrink-0 w-36 whitespace-nowrap">{label}</span>
+      <span className="hidden sm:inline text-xs text-gray-500 shrink-0 w-36 whitespace-nowrap">{label}</span>
+      <span className="sm:hidden text-xs text-gray-500 shrink-0 w-16 truncate">{label}</span>
       <div className="flex-1 bg-gray-800 rounded-full h-1.5">
         <div
           className={`h-1.5 rounded-full transition-all ${scoreColor(pct)}`}
@@ -70,42 +71,43 @@ function ScreenerCard({
   return (
     <>
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
-        <div className="flex items-start gap-4">
-          {/* Rank */}
+        {/* Top row: rank + ticker + composite (always visible) */}
+        <div className="flex items-center gap-3 mb-3">
           <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center">
             <span className="text-xs font-bold text-gray-400">#{rank}</span>
           </div>
-
-          {/* Logo + ticker */}
-          <div className="flex items-center gap-3 flex-shrink-0 w-36">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <CompanyLogo ticker={entry.ticker} size="sm" />
             <TickerTooltip ticker={entry.ticker}>
               <span className="text-white font-bold text-sm">{entry.ticker}</span>
             </TickerTooltip>
           </div>
-
-          {/* Score bars — labels come from the response */}
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <ScoreBar label={labels[0] ?? "Score A"} value={entry.score_a} />
-            <ScoreBar label={labels[1] ?? "Score B"} value={entry.score_b} />
-            <ScoreBar label={labels[2] ?? "Score C"} value={entry.score_c} />
-            <ScoreBar label={labels[3] ?? "Score D"} value={entry.score_d} />
-          </div>
-
-          {/* Composite + tier + actions */}
-          <div className="flex-shrink-0 flex flex-col items-end gap-2 ml-4">
-            <div className="text-right">
-              <div className="text-2xl font-bold text-white tabular-nums">
-                {entry.composite_score.toFixed(1)}
-              </div>
-              <div className="text-xs text-gray-500">composite</div>
-            </div>
+          {/* Composite score — always right-aligned in top row */}
+          <div className="flex-shrink-0 flex items-center gap-2">
             <span
               className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${tierStyle(entry.score_tier)}`}
             >
               {entry.score_tier}
             </span>
-            <div className="flex gap-1.5 mt-1">
+            <div className="text-right">
+              <div className="text-xl font-bold text-white tabular-nums leading-none">
+                {entry.composite_score.toFixed(1)}
+              </div>
+              <div className="text-[10px] text-gray-500">composite</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Score bars — full width on mobile, inline on desktop */}
+        <div className="space-y-1.5 mb-3">
+          <ScoreBar label={labels[0] ?? "Score A"} value={entry.score_a} />
+          <ScoreBar label={labels[1] ?? "Score B"} value={entry.score_b} />
+          <ScoreBar label={labels[2] ?? "Score C"} value={entry.score_c} />
+          <ScoreBar label={labels[3] ?? "Score D"} value={entry.score_d} />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-1.5">
               <button
                 onClick={() => navigate(`/search?ticker=${entry.ticker}`)}
                 className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
@@ -123,8 +125,6 @@ function ScreenerCard({
                 Portfolio
               </button>
             </div>
-          </div>
-        </div>
       </div>
 
       {showModal && (

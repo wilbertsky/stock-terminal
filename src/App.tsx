@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Sidebar } from "./components/Sidebar";
+import { Menu } from "lucide-react";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Search } from "./pages/Search";
@@ -19,11 +20,22 @@ const queryClient = new QueryClient({
 function AppShell({ onLogout }: { onLogout: () => void }) {
   const meQ = useQuery({ queryKey: ["me"], queryFn: auth.me });
   const role = meQ.data?.role;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex bg-gray-950 min-h-screen text-white">
-      <Sidebar onLogout={onLogout} role={role} />
-      <main className="ml-56 flex-1 p-8 min-w-0">
+      <Sidebar onLogout={onLogout} role={role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <main className="md:ml-56 flex-1 p-4 md:p-8 min-w-0">
+        {/* Mobile header */}
+        <div className="md:hidden flex items-center gap-3 mb-4">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-400 hover:text-white transition-colors p-1"
+          >
+            <Menu size={22} />
+          </button>
+          <span className="text-white font-semibold text-sm">Stock Terminal</span>
+        </div>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/search" element={<Search />} />

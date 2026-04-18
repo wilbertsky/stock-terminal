@@ -298,7 +298,7 @@ async function addHolding(e: React.FormEvent) {
   return (
     <div className="space-y-5">
       {/* Summary stat cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <StatCard label="Holdings" value={aggregated.length} />
         <StatCard
           label="Unrealized Return"
@@ -428,15 +428,16 @@ async function addHolding(e: React.FormEvent) {
             No holdings yet — add one below.
           </p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
-                <th className="text-left px-4 py-2">Ticker</th>
-                <th className="text-right px-4 py-2">Avg Cost</th>
-                <th className="text-right px-4 py-2">Current</th>
-                <th className="text-right px-4 py-2">Return</th>
-                <th className="text-right px-4 py-2">Shares</th>
-                <th className="px-4 py-2" />
+                <th className="text-left px-3 py-2">Ticker</th>
+                <th className="hidden sm:table-cell text-right px-3 py-2">Avg Cost</th>
+                <th className="hidden sm:table-cell text-right px-3 py-2">Current</th>
+                <th className="text-right px-3 py-2">Return</th>
+                <th className="hidden sm:table-cell text-right px-3 py-2">Shares</th>
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -460,7 +461,7 @@ async function addHolding(e: React.FormEvent) {
                       onMouseEnter={() => setActiveTicker(a.ticker)}
                       onMouseLeave={() => setActiveTicker(null)}
                     >
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 py-2.5">
                         <TickerTooltip ticker={a.ticker}>
                           <span className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full flex-shrink-0"
@@ -473,19 +474,19 @@ async function addHolding(e: React.FormEvent) {
                           </span>
                         </TickerTooltip>
                       </td>
-                      <td className="px-4 py-2.5 text-right text-gray-300">
+                      <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-300">
                         ${a.avg_cost.toFixed(2)}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-gray-300">
+                      <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-300">
                         ${a.current_price.toFixed(2)}
                       </td>
-                      <td className={`px-4 py-2.5 text-right font-semibold ${text} ${bg} rounded`}>
+                      <td className={`px-3 py-2.5 text-right font-semibold ${text} ${bg} rounded`}>
                         {a.return_pct >= 0 ? "+" : ""}{a.return_pct.toFixed(2)}%
                       </td>
-                      <td className="px-4 py-2.5 text-right text-gray-400">
+                      <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-400">
                         {a.total_shares > 0 ? a.total_shares.toFixed(a.total_shares % 1 === 0 ? 0 : 4) : "—"}
                       </td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-3 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {!hasLots && (
                             <button
@@ -518,22 +519,22 @@ async function addHolding(e: React.FormEvent) {
                     {/* Expanded lots rows */}
                     {hasLots && lotsExpanded && a.lots.map((lot) => (
                       <tr key={lot.id} className="border-b border-gray-800/30 bg-gray-800/20">
-                        <td className="pl-10 pr-4 py-2 text-xs text-gray-500">
+                        <td className="pl-8 pr-3 py-2 text-xs text-gray-500">
                           Lot · {new Date(lot.added_at).toLocaleDateString()}
                         </td>
-                        <td className="px-4 py-2 text-right text-xs text-gray-400">
+                        <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
                           ${lot.price_at_add.toFixed(2)}
                         </td>
-                        <td className="px-4 py-2 text-right text-xs text-gray-400">
+                        <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
                           ${lot.current_price.toFixed(2)}
                         </td>
-                        <td className={`px-4 py-2 text-right text-xs font-semibold ${lot.return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        <td className={`px-3 py-2 text-right text-xs font-semibold ${lot.return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                           {lot.return_pct >= 0 ? "+" : ""}{lot.return_pct.toFixed(2)}%
                         </td>
-                        <td className="px-4 py-2 text-right text-xs text-gray-400">
+                        <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
                           {lot.shares ?? "—"}
                         </td>
-                        <td className="px-4 py-2 text-right">
+                        <td className="px-3 py-2 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setSellHolding(lot)}
@@ -556,6 +557,7 @@ async function addHolding(e: React.FormEvent) {
               })}
             </tbody>
           </table>
+          </div>
         )}
 
         {/* Add holding form */}
@@ -629,6 +631,7 @@ async function addHolding(e: React.FormEvent) {
             {showClosed ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
           </button>
           {showClosed && (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-gray-500 uppercase border-t border-b border-gray-800">
@@ -664,6 +667,7 @@ async function addHolding(e: React.FormEvent) {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -718,9 +722,9 @@ export function Portfolio() {
         <p className="text-gray-500 text-sm">Track holdings and monitor performance over time.</p>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col md:flex-row gap-6">
         {/* Left: portfolio list */}
-        <div className="w-56 flex-shrink-0 space-y-2">
+        <div className="w-full md:w-56 md:flex-shrink-0 space-y-2">
           {listQ.data?.map((p) => (
             <div
               key={p.id}
