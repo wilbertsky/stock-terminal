@@ -38,8 +38,8 @@ export function DisclaimerModal({ onClose }: Props) {
 
           <p>
             <span className="text-white font-medium">No guarantee of accuracy.</span>{" "}
-            Financial data is sourced from third-party providers (SEC EDGAR, Yahoo Finance,
-            Financial Modeling Prep) and may be incomplete, delayed, or inaccurate.
+            Financial data is sourced from free public providers (SEC EDGAR, Yahoo Finance)
+            and may be incomplete, delayed, or inaccurate.
             Calculated metrics — including Piotroski F-Score, DCF intrinsic value, Graham
             number, momentum scores, and composite screener rankings — are derived from
             this data and are subject to the same limitations.
