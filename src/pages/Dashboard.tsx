@@ -37,7 +37,7 @@ export function Dashboard() {
           label="Data Sources"
           value="2 Active"
           positive={true}
-          sub="SEC EDGAR · Yahoo Finance"
+          sub="SEC EDGAR · FMP"
         />
         <StatCard
           label="API Status"

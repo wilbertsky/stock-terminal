@@ -581,7 +581,7 @@ async function addHolding(e: React.FormEvent) {
           </div>
           {addDate && (
             <p className="text-xs text-gray-500">
-              Price will be fetched from Yahoo Finance history for {addDate}.
+              Price will be fetched from FMP history for {addDate}.
             </p>
           )}
           <div className="flex items-center gap-2">
