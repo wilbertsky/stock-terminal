@@ -165,7 +165,7 @@ export function Screener() {
           <h2 className="text-xl font-bold text-white">Sector Screener</h2>
         </div>
         <p className="text-gray-500 text-sm">
-          Top S&P 500 picks by sector, ranked by factor-based composite scores that adapt to each sector's characteristics.
+          Top large-cap picks by sector, ranked by factor-based composite scores that adapt to each sector's characteristics.
         </p>
       </div>
 
@@ -193,7 +193,7 @@ export function Screener() {
           <div className="text-center">
             <p className="text-white font-medium">Analyzing {sectorLabel}…</p>
             <p className="text-gray-500 text-sm mt-1">
-              Scoring the top S&P 500 names by market cap in this sector.
+              Scoring the top large-cap names by market cap in this sector.
               This takes 15–30 seconds.
             </p>
           </div>
