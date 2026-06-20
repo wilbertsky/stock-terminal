@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Loader2, TrendingUp, Search as SearchIcon, Plus } from "lucide-react";
-import { screenerApi, ScreenerEntry, SectorScreenerResponse } from "../api/client";
+import { Loader2, TrendingUp, Search as SearchIcon, Plus, Compass } from "lucide-react";
+import {
+  screenerApi,
+  discoveryApi,
+  ScreenerEntry,
+  SectorScreenerResponse,
+  DiscoveryEntry,
+} from "../api/client";
 import { CompanyLogo } from "../components/CompanyLogo";
 import { AddToPortfolioModal } from "../components/AddToPortfolioModal";
 import { TickerTooltip } from "../components/TickerTooltip";
+
+type Mode = "large-cap" | "discovery";
 
 const SECTORS = [
   { id: "technology", label: "Technology" },
@@ -36,6 +44,21 @@ function scoreColor(score: number) {
   return "bg-red-400";
 }
 
+function formatMarketCap(value: number): string {
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
+  return `$${value.toLocaleString()}`;
+}
+
+/** Negative = trading below intrinsic value, positive = above. Both are surfaced by
+ * discovery (the DCF formula tends to be conservative for asset-light businesses), so
+ * this is informational coloring, not a "good/bad" judgment the way score colors are. */
+function deviationStyle(pct: number): string {
+  if (pct < -1) return "text-emerald-400";
+  if (pct > 1) return "text-amber-400";
+  return "text-gray-300";
+}
+
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.min(value, 100);
   return (
@@ -55,6 +78,36 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
+function CardActions({
+  ticker,
+  onAddToPortfolio,
+}: {
+  ticker: string;
+  onAddToPortfolio: () => void;
+}) {
+  const navigate = useNavigate();
+  return (
+    <div className="flex gap-1.5">
+      <button
+        onClick={() => navigate(`/search?ticker=${ticker}`)}
+        className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+        title="Analyze"
+      >
+        <SearchIcon size={11} />
+        Analyze
+      </button>
+      <button
+        onClick={onAddToPortfolio}
+        className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors"
+        title="Add to portfolio"
+      >
+        <Plus size={11} />
+        Portfolio
+      </button>
+    </div>
+  );
+}
+
 function ScreenerCard({
   entry,
   rank,
@@ -64,7 +117,6 @@ function ScreenerCard({
   rank: number;
   data: SectorScreenerResponse;
 }) {
-  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const labels = data.score_labels;
 
@@ -106,25 +158,81 @@ function ScreenerCard({
           <ScoreBar label={labels[3] ?? "Score D"} value={entry.score_d} />
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-1.5">
-              <button
-                onClick={() => navigate(`/search?ticker=${entry.ticker}`)}
-                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
-                title="Analyze"
-              >
-                <SearchIcon size={11} />
-                Analyze
-              </button>
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors"
-                title="Add to portfolio"
-              >
-                <Plus size={11} />
-                Portfolio
-              </button>
+        <CardActions ticker={entry.ticker} onAddToPortfolio={() => setShowModal(true)} />
+      </div>
+
+      {showModal && (
+        <AddToPortfolioModal ticker={entry.ticker} onClose={() => setShowModal(false)} />
+      )}
+    </>
+  );
+}
+
+function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number }) {
+  const [showModal, setShowModal] = useState(false);
+  const deviation = entry.deviation_from_intrinsic_value_pct;
+  const deviationLabel =
+    deviation < 0
+      ? `${Math.abs(deviation).toFixed(1)}% below intrinsic value`
+      : deviation > 0
+      ? `${deviation.toFixed(1)}% above intrinsic value`
+      : "at intrinsic value";
+
+  return (
+    <>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+        {/* Top row: rank + ticker + company name + market cap */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center">
+            <span className="text-xs font-bold text-gray-400">#{rank}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <CompanyLogo ticker={entry.ticker} size="sm" />
+            <div className="min-w-0">
+              <TickerTooltip ticker={entry.ticker}>
+                <span className="text-white font-bold text-sm">{entry.ticker}</span>
+              </TickerTooltip>
+              <p className="text-[11px] text-gray-500 truncate">{entry.company_name}</p>
             </div>
+          </div>
+          <div className="flex-shrink-0 text-right">
+            <div className="text-sm font-semibold text-white tabular-nums leading-none">
+              {formatMarketCap(entry.market_cap)}
+            </div>
+            <div className="text-[10px] text-gray-500">market cap</div>
+          </div>
+        </div>
+
+        {/* Price vs intrinsic value */}
+        <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg bg-gray-800/50">
+          <div>
+            <div className="text-[10px] text-gray-500">price</div>
+            <div className="text-sm font-semibold text-white tabular-nums">
+              ${entry.current_price.toFixed(2)}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-[10px] text-gray-500">intrinsic value</div>
+            <div className="text-sm font-semibold text-white tabular-nums">
+              ${entry.estimated_intrinsic_value.toFixed(2)}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] text-gray-500">deviation</div>
+            <div className={`text-sm font-semibold tabular-nums ${deviationStyle(deviation)}`}>
+              {deviationLabel}
+            </div>
+          </div>
+        </div>
+
+        {/* Quality floor scores */}
+        <div className="space-y-1.5 mb-3">
+          <ScoreBar label="Quality" value={entry.quality_score} />
+          <ScoreBar label="Debt Safety" value={entry.debt_safety_score} />
+          <ScoreBar label="Piotroski (/9)" value={(entry.piotroski_score / 9) * 100} />
+        </div>
+
+        <CardActions ticker={entry.ticker} onAddToPortfolio={() => setShowModal(true)} />
       </div>
 
       {showModal && (
@@ -135,25 +243,55 @@ function ScreenerCard({
 }
 
 export function Screener() {
+  const [mode, setMode] = useState<Mode>(
+    () => (localStorage.getItem("screenerMode") as Mode | null) ?? "large-cap"
+  );
   const [sector, setSector] = useState(
     () => localStorage.getItem("lastSector") ?? "technology"
   );
+  const [discoverySector, setDiscoverySector] = useState<string | undefined>(
+    () => localStorage.getItem("lastDiscoverySector") ?? undefined
+  );
+
+  useEffect(() => {
+    localStorage.setItem("screenerMode", mode);
+  }, [mode]);
 
   useEffect(() => {
     localStorage.setItem("lastSector", sector);
   }, [sector]);
 
-  const q = useQuery({
+  useEffect(() => {
+    if (discoverySector) localStorage.setItem("lastDiscoverySector", discoverySector);
+    else localStorage.removeItem("lastDiscoverySector");
+  }, [discoverySector]);
+
+  const screenerQuery = useQuery({
     queryKey: ["screener", sector],
     queryFn: () => screenerApi.getSector(sector),
+    enabled: mode === "large-cap",
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
-  const sectorLabel = SECTORS.find((s) => s.id === sector)?.label ?? sector;
+  const discoveryQuery = useQuery({
+    queryKey: ["discovery", discoverySector ?? "all"],
+    queryFn: () => discoveryApi.get(discoverySector),
+    enabled: mode === "discovery",
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
 
-  const weightsLegend = q.data
-    ? q.data.score_labels.map((l, i) => `${l} ${q.data!.score_weights[i]}`).join(" · ")
+  const activeQuery = mode === "large-cap" ? screenerQuery : discoveryQuery;
+  const sectorLabel = SECTORS.find((s) => s.id === sector)?.label ?? sector;
+  const discoverySectorLabel = discoverySector
+    ? SECTORS.find((s) => s.id === discoverySector)?.label ?? discoverySector
+    : "All Sectors";
+
+  const weightsLegend = screenerQuery.data
+    ? screenerQuery.data.score_labels
+        .map((l, i) => `${l} ${screenerQuery.data!.score_weights[i]}`)
+        .join(" · ")
     : null;
 
   return (
@@ -162,21 +300,61 @@ export function Screener() {
       <div>
         <div className="flex items-center gap-2 mb-1">
           <TrendingUp size={18} className="text-emerald-400" />
-          <h2 className="text-xl font-bold text-white">Sector Screener</h2>
+          <h2 className="text-xl font-bold text-white">Screener</h2>
         </div>
         <p className="text-gray-500 text-sm">
-          Top large-cap picks by sector, ranked by factor-based composite scores that adapt to each sector's characteristics.
+          {mode === "large-cap"
+            ? "Top large-cap picks by sector, ranked by factor-based composite scores that adapt to each sector's characteristics."
+            : "Small/mid-cap stocks ($300M–$5B) close to their DCF intrinsic value with fundamentals above a quality floor — names too small to ever appear in the large-cap screener."}
         </p>
+      </div>
+
+      {/* Mode toggle */}
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => setMode("large-cap")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            mode === "large-cap"
+              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+              : "bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-200"
+          }`}
+        >
+          <TrendingUp size={13} />
+          Large Cap
+        </button>
+        <button
+          onClick={() => setMode("discovery")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            mode === "discovery"
+              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+              : "bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-200"
+          }`}
+        >
+          <Compass size={13} />
+          Discovery
+        </button>
       </div>
 
       {/* Sector tabs */}
       <div className="flex gap-1.5 flex-wrap">
+        {mode === "discovery" && (
+          <button
+            onClick={() => setDiscoverySector(undefined)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              !discoverySector
+                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                : "bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-200"
+            }`}
+          >
+            All Sectors
+          </button>
+        )}
         {SECTORS.map((s) => (
           <button
             key={s.id}
-            onClick={() => setSector(s.id)}
+            onClick={() => (mode === "large-cap" ? setSector(s.id) : setDiscoverySector(s.id))}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              sector === s.id
+              (mode === "large-cap" ? sector : discoverySector) === s.id
                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
                 : "bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-200"
             }`}
@@ -187,53 +365,93 @@ export function Screener() {
       </div>
 
       {/* Loading */}
-      {q.isLoading && (
+      {activeQuery.isLoading && (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Loader2 size={28} className="text-emerald-400 animate-spin" />
           <div className="text-center">
-            <p className="text-white font-medium">Analyzing {sectorLabel}…</p>
+            <p className="text-white font-medium">
+              {mode === "large-cap"
+                ? `Analyzing ${sectorLabel}…`
+                : `Screening ${discoverySectorLabel}…`}
+            </p>
             <p className="text-gray-500 text-sm mt-1">
-              Scoring the top large-cap names by market cap in this sector.
-              This takes 15–30 seconds.
+              {mode === "large-cap"
+                ? "Scoring the top large-cap names by market cap in this sector. This takes 15–30 seconds."
+                : "Evaluating small/mid-cap candidates against intrinsic value and quality floors. This takes 15–30 seconds."}
             </p>
           </div>
         </div>
       )}
 
       {/* Error */}
-      {q.isError && (
+      {activeQuery.isError && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm">
-          {(q.error as Error).message}
+          {(activeQuery.error as Error).message}
         </div>
       )}
 
-      {/* Results */}
-      {q.data && (
+      {/* Large-cap results */}
+      {mode === "large-cap" && screenerQuery.data && (
         <div className="space-y-4">
-          {/* Meta */}
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm text-gray-400">
-              <span className="text-white font-semibold">{q.data.stocks_analyzed}</span> stocks
+              <span className="text-white font-semibold">{screenerQuery.data.stocks_analyzed}</span> stocks
               analyzed in{" "}
               <span className="text-white font-semibold">{sectorLabel}</span>
               {" "}·{" "}
-              <span className="text-gray-500">{q.data.scoring_model} model</span>
+              <span className="text-gray-500">{screenerQuery.data.scoring_model} model</span>
             </p>
             {weightsLegend && (
               <p className="text-xs text-gray-600">Weights: {weightsLegend}</p>
             )}
           </div>
 
-          {/* Cards */}
           <div className="space-y-3">
-            {q.data.results.map((entry, i) => (
-              <ScreenerCard key={entry.ticker} entry={entry} rank={i + 1} data={q.data!} />
+            {screenerQuery.data.results.map((entry, i) => (
+              <ScreenerCard key={entry.ticker} entry={entry} rank={i + 1} data={screenerQuery.data!} />
             ))}
           </div>
 
-          {/* Disclaimer */}
           <p className="text-xs text-gray-600 border-t border-gray-800 pt-4">
-            {q.data.disclaimer}
+            {screenerQuery.data.disclaimer}
+          </p>
+        </div>
+      )}
+
+      {/* Discovery results */}
+      {mode === "discovery" && discoveryQuery.data && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-sm text-gray-400">
+              <span className="text-white font-semibold">{discoveryQuery.data.candidates_screened}</span> candidates
+              screened in{" "}
+              <span className="text-white font-semibold">{discoverySectorLabel}</span>
+              {" "}·{" "}
+              <span className="text-white font-semibold">{discoveryQuery.data.results.length}</span> matched
+            </p>
+            <p className="text-xs text-gray-600">
+              {formatMarketCap(discoveryQuery.data.market_cap_floor)}–
+              {formatMarketCap(discoveryQuery.data.market_cap_ceiling)} market cap · ±
+              {discoveryQuery.data.deviation_band_pct}% of intrinsic value
+            </p>
+          </div>
+
+          {discoveryQuery.data.results.length === 0 ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center text-gray-500 text-sm">
+              No candidates in this sector currently sit near intrinsic value with fundamentals
+              above the quality floor. Try "All Sectors" or check back later — the universe is
+              re-screened on every request.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {discoveryQuery.data.results.map((entry, i) => (
+                <DiscoveryCard key={entry.ticker} entry={entry} rank={i + 1} />
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-600 border-t border-gray-800 pt-4">
+            {discoveryQuery.data.disclaimer}
           </p>
         </div>
       )}

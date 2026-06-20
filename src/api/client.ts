@@ -220,6 +220,41 @@ export const screenerApi = {
     request<SectorScreenerResponse>(`/api/screener/${sector}`),
 };
 
+// ── Discovery (small/mid-cap near-miss screener) ───────────────────────────────
+
+export interface DiscoveryEntry {
+  ticker: string;
+  company_name: string;
+  sector: string | null;
+  market_cap: number;
+  current_price: number;
+  /** Simplified DCF intrinsic value estimate. */
+  estimated_intrinsic_value: number;
+  /** (current_price - intrinsic_value) / intrinsic_value * 100. Negative = undervalued. */
+  deviation_from_intrinsic_value_pct: number;
+  quality_score: number;
+  debt_safety_score: number;
+  /** Out of 9. */
+  piotroski_score: number;
+}
+
+export interface DiscoveryResponse {
+  sector: string | null;
+  market_cap_floor: number;
+  market_cap_ceiling: number;
+  deviation_band_pct: number;
+  candidates_screened: number;
+  results: DiscoveryEntry[];
+  disclaimer: string;
+}
+
+export const discoveryApi = {
+  get: (sector?: string) =>
+    request<DiscoveryResponse>(
+      `/api/discovery${sector ? `?sector=${encodeURIComponent(sector)}` : ""}`
+    ),
+};
+
 export interface CompanyProfile {
   ticker: string;
   description: string;
