@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface Props {
@@ -5,7 +6,9 @@ interface Props {
 }
 
 export function DisclaimerModal({ onClose }: Props) {
-  return (
+  // Rendered via a portal to document.body — see FeedbackModal.tsx for why
+  // (Sidebar's <aside> has a CSS transform that breaks fixed-position centering).
+  return createPortal(
     <div
       className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
       onClick={onClose}
@@ -74,6 +77,7 @@ export function DisclaimerModal({ onClose }: Props) {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Send, Check } from "lucide-react";
 import { feedbackApi } from "../api/client";
 
@@ -28,7 +29,11 @@ export function FeedbackModal({ onClose }: Props) {
     }
   }
 
-  return (
+  // Rendered via a portal to document.body — Sidebar's <aside> applies a CSS
+  // transform (transition-transform/translate-x-*) which would otherwise become
+  // the containing block for this fixed-position overlay, confining it to the
+  // sidebar's column instead of centering it in the viewport.
+  return createPortal(
     <div
       className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
       onClick={onClose}
@@ -86,6 +91,7 @@ export function FeedbackModal({ onClose }: Props) {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
