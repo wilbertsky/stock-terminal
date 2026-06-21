@@ -228,18 +228,23 @@ export interface DiscoveryEntry {
   sector: string | null;
   market_cap: number;
   current_price: number;
-  /** Simplified DCF intrinsic value estimate. */
-  estimated_intrinsic_value: number;
-  /** (current_price - intrinsic_value) / intrinsic_value * 100. Negative = undervalued. */
-  deviation_from_intrinsic_value_pct: number;
+  /** Graham Number: sqrt(22.5 * EPS * BVPS). */
+  graham_number: number;
+  /** (current_price - graham_number) / graham_number * 100. Negative = undervalued. */
+  deviation_from_graham_number_pct: number;
   quality_score: number;
   debt_safety_score: number;
   /** Out of 9. */
   piotroski_score: number;
+  /** Underlying fields unavailable from both EDGAR and FMP (e.g. "debt_to_equity",
+   * "gross_margin", "return_on_equity"). Empty when all data was available. When
+   * non-empty, this candidate may have scored lower than warranted due to missing
+   * data rather than genuinely weak fundamentals. */
+  missing_data_fields: string[];
 }
 
 export interface DiscoveryResponse {
-  sector: string | null;
+  sector: string;
   market_cap_floor: number;
   market_cap_ceiling: number;
   deviation_band_pct: number;
@@ -249,10 +254,10 @@ export interface DiscoveryResponse {
 }
 
 export const discoveryApi = {
-  get: (sector?: string) =>
-    request<DiscoveryResponse>(
-      `/api/discovery${sector ? `?sector=${encodeURIComponent(sector)}` : ""}`
-    ),
+  // Sector is required — screening across all sectors at once was tried and dropped,
+  // see Screener.tsx for why.
+  get: (sector: string) =>
+    request<DiscoveryResponse>(`/api/discovery?sector=${encodeURIComponent(sector)}`),
 };
 
 export interface CompanyProfile {

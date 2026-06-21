@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Loader2, TrendingUp, Search as SearchIcon, Plus, Compass } from "lucide-react";
+import { Loader2, TrendingUp, Search as SearchIcon, Plus, Compass, TriangleAlert } from "lucide-react";
 import {
   screenerApi,
   discoveryApi,
@@ -50,8 +50,8 @@ function formatMarketCap(value: number): string {
   return `$${value.toLocaleString()}`;
 }
 
-/** Negative = trading below intrinsic value, positive = above. Both are surfaced by
- * discovery (the DCF formula tends to be conservative for asset-light businesses), so
+/** Negative = trading below Graham Number, positive = above. Both are surfaced by
+ * discovery (the formula tends to be conservative for asset-light businesses), so
  * this is informational coloring, not a "good/bad" judgment the way score colors are. */
 function deviationStyle(pct: number): string {
   if (pct < -1) return "text-emerald-400";
@@ -168,15 +168,21 @@ function ScreenerCard({
   );
 }
 
+const MISSING_FIELD_LABELS: Record<string, string> = {
+  debt_to_equity: "Debt/Equity",
+  gross_margin: "Gross Margin",
+  return_on_equity: "Return on Equity",
+};
+
 function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number }) {
   const [showModal, setShowModal] = useState(false);
-  const deviation = entry.deviation_from_intrinsic_value_pct;
+  const deviation = entry.deviation_from_graham_number_pct;
   const deviationLabel =
     deviation < 0
-      ? `${Math.abs(deviation).toFixed(1)}% below intrinsic value`
+      ? `${Math.abs(deviation).toFixed(1)}% below Graham Number`
       : deviation > 0
-      ? `${deviation.toFixed(1)}% above intrinsic value`
-      : "at intrinsic value";
+      ? `${deviation.toFixed(1)}% above Graham Number`
+      : "at Graham Number";
 
   return (
     <>
@@ -203,7 +209,7 @@ function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number })
           </div>
         </div>
 
-        {/* Price vs intrinsic value */}
+        {/* Price vs Graham Number */}
         <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg bg-gray-800/50">
           <div>
             <div className="text-[10px] text-gray-500">price</div>
@@ -212,9 +218,9 @@ function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number })
             </div>
           </div>
           <div className="text-center">
-            <div className="text-[10px] text-gray-500">intrinsic value</div>
+            <div className="text-[10px] text-gray-500">Graham Number</div>
             <div className="text-sm font-semibold text-white tabular-nums">
-              ${entry.estimated_intrinsic_value.toFixed(2)}
+              ${entry.graham_number.toFixed(2)}
             </div>
           </div>
           <div className="text-right">
@@ -231,6 +237,18 @@ function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number })
           <ScoreBar label="Debt Safety" value={entry.debt_safety_score} />
           <ScoreBar label="Piotroski (/9)" value={(entry.piotroski_score / 9) * 100} />
         </div>
+
+        {entry.missing_data_fields.length > 0 && (
+          <div
+            className="flex items-start gap-1.5 mb-3 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px]"
+            title="Scores above may be understated — this data wasn't reported by either of our sources, not necessarily a sign of weak fundamentals."
+          >
+            <TriangleAlert size={12} className="shrink-0 mt-0.5" />
+            <span>
+              Incomplete data ({entry.missing_data_fields.map((f) => MISSING_FIELD_LABELS[f] ?? f).join(", ")}) — scores above may be understated.
+            </span>
+          </div>
+        )}
 
         <CardActions ticker={entry.ticker} onAddToPortfolio={() => setShowModal(true)} />
       </div>
@@ -249,8 +267,11 @@ export function Screener() {
   const [sector, setSector] = useState(
     () => localStorage.getItem("lastSector") ?? "technology"
   );
-  const [discoverySector, setDiscoverySector] = useState<string | undefined>(
-    () => localStorage.getItem("lastDiscoverySector") ?? undefined
+  // Sector is required for discovery — screening across all sectors at once was tried
+  // and dropped (see discoveryApi.get's comment in api/client.ts for why), so this
+  // defaults to a real sector just like the large-cap screener's `sector` state does.
+  const [discoverySector, setDiscoverySector] = useState(
+    () => localStorage.getItem("lastDiscoverySector") ?? "technology"
   );
 
   useEffect(() => {
@@ -262,8 +283,7 @@ export function Screener() {
   }, [sector]);
 
   useEffect(() => {
-    if (discoverySector) localStorage.setItem("lastDiscoverySector", discoverySector);
-    else localStorage.removeItem("lastDiscoverySector");
+    localStorage.setItem("lastDiscoverySector", discoverySector);
   }, [discoverySector]);
 
   const screenerQuery = useQuery({
@@ -275,7 +295,7 @@ export function Screener() {
   });
 
   const discoveryQuery = useQuery({
-    queryKey: ["discovery", discoverySector ?? "all"],
+    queryKey: ["discovery", discoverySector],
     queryFn: () => discoveryApi.get(discoverySector),
     enabled: mode === "discovery",
     staleTime: 5 * 60 * 1000,
@@ -284,9 +304,7 @@ export function Screener() {
 
   const activeQuery = mode === "large-cap" ? screenerQuery : discoveryQuery;
   const sectorLabel = SECTORS.find((s) => s.id === sector)?.label ?? sector;
-  const discoverySectorLabel = discoverySector
-    ? SECTORS.find((s) => s.id === discoverySector)?.label ?? discoverySector
-    : "All Sectors";
+  const discoverySectorLabel = SECTORS.find((s) => s.id === discoverySector)?.label ?? discoverySector;
 
   const weightsLegend = screenerQuery.data
     ? screenerQuery.data.score_labels
@@ -305,7 +323,7 @@ export function Screener() {
         <p className="text-gray-500 text-sm">
           {mode === "large-cap"
             ? "Top large-cap picks by sector, ranked by factor-based composite scores that adapt to each sector's characteristics."
-            : "Small/mid-cap stocks ($300M–$5B) close to their DCF intrinsic value with fundamentals above a quality floor — names too small to ever appear in the large-cap screener."}
+            : "Small/mid-cap stocks ($300M–$5B) close to their Graham Number with fundamentals above a quality floor — names too small to ever appear in the large-cap screener."}
         </p>
       </div>
 
@@ -335,20 +353,8 @@ export function Screener() {
         </button>
       </div>
 
-      {/* Sector tabs */}
+      {/* Sector tabs — sector is required in both modes */}
       <div className="flex gap-1.5 flex-wrap">
-        {mode === "discovery" && (
-          <button
-            onClick={() => setDiscoverySector(undefined)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              !discoverySector
-                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                : "bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-200"
-            }`}
-          >
-            All Sectors
-          </button>
-        )}
         {SECTORS.map((s) => (
           <button
             key={s.id}
@@ -377,7 +383,7 @@ export function Screener() {
             <p className="text-gray-500 text-sm mt-1">
               {mode === "large-cap"
                 ? "Scoring the top large-cap names by market cap in this sector. This takes 15–30 seconds."
-                : "Evaluating small/mid-cap candidates against intrinsic value and quality floors. This takes 15–30 seconds."}
+                : "Evaluating small/mid-cap candidates against Graham Number and quality floors. This takes 15–30 seconds."}
             </p>
           </div>
         </div>
@@ -432,14 +438,14 @@ export function Screener() {
             <p className="text-xs text-gray-600">
               {formatMarketCap(discoveryQuery.data.market_cap_floor)}–
               {formatMarketCap(discoveryQuery.data.market_cap_ceiling)} market cap · ±
-              {discoveryQuery.data.deviation_band_pct}% of intrinsic value
+              {discoveryQuery.data.deviation_band_pct}% of Graham Number
             </p>
           </div>
 
           {discoveryQuery.data.results.length === 0 ? (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center text-gray-500 text-sm">
-              No candidates in this sector currently sit near intrinsic value with fundamentals
-              above the quality floor. Try "All Sectors" or check back later — the universe is
+              No candidates in this sector currently sit near their Graham Number with fundamentals
+              above the quality floor. Try another sector or check back later — the universe is
               re-screened on every request.
             </div>
           ) : (
