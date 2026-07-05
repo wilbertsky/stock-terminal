@@ -14,6 +14,9 @@ export function AddToPortfolioModal({ ticker, onClose }: Props) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [shares, setShares] = useState("");
+  const [date, setDate] = useState("");
+
   // Create new portfolio state
   const [newName, setNewName] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -28,7 +31,9 @@ export function AddToPortfolioModal({ ticker, onClose }: Props) {
     setLoadingId(portfolioId);
     setError(null);
     try {
-      await portfolioApi.addHolding(portfolioId, ticker);
+      const parsedShares = shares ? parseFloat(shares) : undefined;
+      const parsedDate = date || undefined;
+      await portfolioApi.addHolding(portfolioId, ticker, parsedShares, parsedDate);
       qc.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
       setAddedId(portfolioId);
       setTimeout(onClose, 1200);
@@ -79,9 +84,34 @@ export function AddToPortfolioModal({ ticker, onClose }: Props) {
           </button>
         </div>
 
+        {/* Shares + Date */}
+        <div className="flex gap-2 mb-5">
+          <div className="flex-1">
+            <label className="text-xs text-gray-500 mb-1 block">Shares</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={shares}
+              onChange={(e) => setShares(e.target.value)}
+              placeholder="e.g. 10"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-xs text-gray-500 mb-1 block">Date <span className="text-gray-600">(optional)</span></label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+        </div>
+
         {/* Error */}
         {error && (
-          <div className="mb-4 text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          <div className="mb-4 text-red-400 text-xs bg-red-500/10 border border-red-500/20 border rounded-lg px-3 py-2">
             {error}
           </div>
         )}
