@@ -11,6 +11,7 @@ import {
   MessageSquare,
   ShieldCheck,
   X,
+  Bot,
 } from "lucide-react";
 import { DisclaimerModal } from "./DisclaimerModal";
 import { FeedbackModal } from "./FeedbackModal";
@@ -28,8 +29,9 @@ const links = [
   { to: "/screener", icon: TrendingUp, label: "Screener" },
   { to: "/portfolio", icon: BriefcaseBusiness, label: "Portfolio" },
   { to: "/community", icon: Users, label: "Community" },
+  { to: "/chat", icon: Bot, label: "AI Chat", beta: true },
   { to: "/settings", icon: Settings, label: "Settings" },
-];
+] as const;
 
 export function Sidebar({ onLogout, role, open, onClose }: Props) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -72,24 +74,32 @@ export function Sidebar({ onLogout, role, open, onClose }: Props) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {links.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "text-gray-400 hover:bg-gray-800 hover:text-gray-100"
-                }`
-              }
-            >
-              <Icon size={16} />
-              {label}
-            </NavLink>
-          ))}
+          {links.map(({ to, icon: Icon, label, ...rest }) => {
+            const beta = "beta" in rest && rest.beta;
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/"}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "text-gray-400 hover:bg-gray-800 hover:text-gray-100"
+                  }`
+                }
+              >
+                <Icon size={16} />
+                <span className="flex-1">{label}</span>
+                {beta && (
+                  <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full leading-none">
+                    Beta
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
 
           {role === "admin" && (
             <>

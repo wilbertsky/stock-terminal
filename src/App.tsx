@@ -11,6 +11,7 @@ import { Screener } from "./pages/Screener";
 import { Settings } from "./pages/Settings";
 import { AdminFeedback } from "./pages/AdminFeedback";
 import { CommunityPortfolios } from "./pages/CommunityPortfolios";
+import { Chat } from "./pages/Chat";
 import { auth } from "./api/client";
 
 const queryClient = new QueryClient({
@@ -42,6 +43,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
           <Route path="/screener" element={<Screener />} />
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/community" element={<CommunityPortfolios />} />
+          <Route path="/chat" element={<Chat />} />
           <Route path="/settings" element={<Settings />} />
           <Route
             path="/admin/feedback"

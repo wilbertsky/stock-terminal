@@ -463,6 +463,27 @@ export const communityApi = {
   list: () => request<PublicPortfolioSummary[]>("/api/community"),
 };
 
+// ── Chat (RAG proxy) ──────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResult {
+  answer: string;
+  toolCalls: unknown[];
+  consistencyWarnings: string[];
+}
+
+export const chatApi = {
+  send: (question: string, history: ChatMessage[]) =>
+    request<ChatResult>("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ question, history }),
+    }),
+};
+
 // ── Feedback ──────────────────────────────────────────────────────────────────
 
 export interface FeedbackRow {
