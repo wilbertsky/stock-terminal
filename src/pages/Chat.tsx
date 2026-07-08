@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertTriangle, Sparkles, Trash2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Loader2, Bot, User, AlertTriangle, Sparkles, Trash2, RotateCcw } from "lucide-react";
 import { chatApi, ChatMessage } from "../api/client";
 
 const MAX_HISTORY = 12;
+const POLL_INTERVAL_MS = 2_000;
+const MAX_POLLS = 60; // 60 × 2s = 120s hard ceiling
 
 interface Message extends ChatMessage {
   consistencyWarnings?: string[];
@@ -15,17 +17,34 @@ function updateHistory(msgs: Message[]) {
   chatHistory = msgs;
 }
 
+function pollStatusText(elapsedSeconds: number): string {
+  if (elapsedSeconds < 20) return "Researching…";
+  if (elapsedSeconds < 40) return "Still working…";
+  return "Taking longer than expected…";
+}
+
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState("Researching…");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Cancel polling on unmount (e.g. user navigates away mid-poll)
+  useEffect(() => {
+    return () => {
+      cancelledRef.current = true;
+      if (pollTimerRef.current !== null) clearTimeout(pollTimerRef.current);
+    };
+  }, []);
 
   function setAndPersist(msgs: Message[]) {
     updateHistory(msgs);
@@ -34,6 +53,20 @@ export function Chat() {
 
   function clearChat() {
     setAndPersist([]);
+    setError(null);
+  }
+
+  const cancelPolling = useCallback(() => {
+    cancelledRef.current = true;
+    if (pollTimerRef.current !== null) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  function handleRetry() {
+    cancelPolling();
+    setLoading(false);
     setError(null);
   }
 
@@ -52,6 +85,8 @@ export function Chat() {
     setInput("");
     setError(null);
     setLoading(true);
+    setStatusText("Researching…");
+    cancelledRef.current = false;
 
     const history: ChatMessage[] = messages.slice(-MAX_HISTORY).map((m) => ({
       role: m.role,
@@ -60,16 +95,71 @@ export function Chat() {
 
     try {
       const data = await chatApi.send(question, history);
-      const assistantMsg: Message = {
-        role: "assistant",
-        content: data.answer ?? "(no response)",
-        consistencyWarnings: data.consistencyWarnings ?? [],
+
+      // Guard: if server somehow returns a completed answer synchronously
+      if (data.status === "completed" && data.answer !== null) {
+        const assistantMsg: Message = {
+          role: "assistant",
+          content: data.answer,
+          consistencyWarnings: data.consistencyWarnings ?? [],
+        };
+        setAndPersist([...nextMessages, assistantMsg]);
+        setLoading(false);
+        return;
+      }
+
+      // Normal async path — poll for the result
+      const { jobId } = data;
+      const startedAt = Date.now();
+      let polls = 0;
+
+      const poll = async () => {
+        if (cancelledRef.current) return;
+
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        setStatusText(pollStatusText(elapsed));
+
+        if (++polls > MAX_POLLS) {
+          setError("Request timed out after 2 minutes. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const status = await chatApi.pollJob(jobId);
+          if (cancelledRef.current) return;
+
+          if (status.status === "completed") {
+            const assistantMsg: Message = {
+              role: "assistant",
+              content: status.answer ?? "(no response)",
+              consistencyWarnings: status.consistencyWarnings ?? [],
+            };
+            setAndPersist([...nextMessages, assistantMsg]);
+            setLoading(false);
+            return;
+          }
+
+          if (status.status === "failed") {
+            setError(status.error ?? "The request failed. Please try again.");
+            setLoading(false);
+            return;
+          }
+
+          // Still pending or processing — schedule next tick
+          pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+        } catch (err) {
+          if (!cancelledRef.current) {
+            setError(err instanceof Error ? err.message : "Polling error. Please try again.");
+            setLoading(false);
+          }
+        }
       };
-      setAndPersist([...nextMessages, assistantMsg]);
+
+      void poll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
       setAndPersist(messages);
-    } finally {
       setLoading(false);
     }
   }
@@ -80,6 +170,8 @@ export function Chat() {
       sendMessage();
     }
   }
+
+  const showRetry = loading && statusText === "Taking longer than expected…";
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-4rem)]">
@@ -182,9 +274,19 @@ export function Chat() {
             <div className="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
               <Bot size={14} className="text-emerald-400" />
             </div>
-            <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-2">
-              <Loader2 size={14} className="text-emerald-400 animate-spin" />
-              <span className="text-gray-400 text-sm">Thinking…</span>
+            <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-3">
+              <Loader2 size={14} className="text-emerald-400 animate-spin flex-shrink-0" />
+              <span className="text-gray-400 text-sm">{statusText}</span>
+              {showRetry && (
+                <button
+                  onClick={handleRetry}
+                  className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-emerald-400 border border-gray-600 hover:border-emerald-500 rounded-lg px-2 py-0.5 transition-colors ml-1"
+                  title="Cancel and try again"
+                >
+                  <RotateCcw size={10} />
+                  Retry
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -470,10 +470,23 @@ export interface ChatMessage {
   content: string;
 }
 
+/** Returned immediately by POST /api/chat — job is queued async. */
 export interface ChatResult {
-  answer: string;
+  jobId: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  answer: string | null;
   toolCalls: unknown[];
   consistencyWarnings: string[];
+}
+
+/** Returned by GET /api/chat-jobs/{jobId} while polling. */
+export interface ChatJobStatus {
+  jobId: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  answer: string | null;
+  toolCalls: unknown[];
+  consistencyWarnings: string[];
+  error: string | null;
 }
 
 export const chatApi = {
@@ -482,6 +495,8 @@ export const chatApi = {
       method: "POST",
       body: JSON.stringify({ question, history }),
     }),
+  pollJob: (jobId: string) =>
+    request<ChatJobStatus>(`/api/chat-jobs/${jobId}`),
 };
 
 // ── Feedback ──────────────────────────────────────────────────────────────────
