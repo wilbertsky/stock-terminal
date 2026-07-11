@@ -14,6 +14,12 @@ import { AddToPortfolioModal } from "../components/AddToPortfolioModal";
 import { TickerTooltip } from "../components/TickerTooltip";
 
 type Mode = "large-cap" | "discovery";
+type Exchange = "us" | "lse";
+
+const EXCHANGES: { id: Exchange; label: string; flag: string }[] = [
+  { id: "us",  label: "US",  flag: "🇺🇸" },
+  { id: "lse", label: "LSE", flag: "🇬🇧" },
+];
 
 const SECTORS = [
   { id: "technology", label: "Technology" },
@@ -44,10 +50,15 @@ function scoreColor(score: number) {
   return "bg-red-400";
 }
 
-function formatMarketCap(value: number): string {
-  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
-  return `$${value.toLocaleString()}`;
+function currencySymbol(currency: string): string {
+  return currency === "GBP" ? "£" : "$";
+}
+
+function formatMarketCap(value: number, currency = "USD"): string {
+  const sym = currencySymbol(currency);
+  if (value >= 1e9) return `${sym}${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `${sym}${(value / 1e6).toFixed(0)}M`;
+  return `${sym}${value.toLocaleString()}`;
 }
 
 /** Negative = trading below Graham Number, positive = above. Both are surfaced by
@@ -174,7 +185,7 @@ const MISSING_FIELD_LABELS: Record<string, string> = {
   return_on_equity: "Return on Equity",
 };
 
-function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number }) {
+function DiscoveryCard({ entry, rank, currency }: { entry: DiscoveryEntry; rank: number; currency: string }) {
   const [showModal, setShowModal] = useState(false);
   const deviation = entry.deviation_from_graham_number_pct;
   const deviationLabel =
@@ -203,7 +214,7 @@ function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number })
           </div>
           <div className="flex-shrink-0 text-right">
             <div className="text-sm font-semibold text-white tabular-nums leading-none">
-              {formatMarketCap(entry.market_cap)}
+              {formatMarketCap(entry.market_cap, currency)}
             </div>
             <div className="text-[10px] text-gray-500">market cap</div>
           </div>
@@ -214,13 +225,13 @@ function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number })
           <div>
             <div className="text-[10px] text-gray-500">price</div>
             <div className="text-sm font-semibold text-white tabular-nums">
-              ${entry.current_price.toFixed(2)}
+              {currencySymbol(currency)}{entry.current_price.toFixed(2)}
             </div>
           </div>
           <div className="text-center">
             <div className="text-[10px] text-gray-500">Graham Number</div>
             <div className="text-sm font-semibold text-white tabular-nums">
-              ${entry.graham_number.toFixed(2)}
+              {currencySymbol(currency)}{entry.graham_number.toFixed(2)}
             </div>
           </div>
           <div className="text-right">
@@ -261,6 +272,9 @@ function DiscoveryCard({ entry, rank }: { entry: DiscoveryEntry; rank: number })
 }
 
 export function Screener() {
+  const [exchange, setExchange] = useState<Exchange>(
+    () => (localStorage.getItem("screenerExchange") as Exchange | null) ?? "us"
+  );
   const [mode, setMode] = useState<Mode>(
     () => (localStorage.getItem("screenerMode") as Mode | null) ?? "large-cap"
   );
@@ -275,6 +289,10 @@ export function Screener() {
   );
 
   useEffect(() => {
+    localStorage.setItem("screenerExchange", exchange);
+  }, [exchange]);
+
+  useEffect(() => {
     localStorage.setItem("screenerMode", mode);
   }, [mode]);
 
@@ -287,16 +305,16 @@ export function Screener() {
   }, [discoverySector]);
 
   const screenerQuery = useQuery({
-    queryKey: ["screener", sector],
-    queryFn: () => screenerApi.getSector(sector),
+    queryKey: ["screener", exchange, sector],
+    queryFn: () => screenerApi.getSector(sector, exchange),
     enabled: mode === "large-cap",
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
   const discoveryQuery = useQuery({
-    queryKey: ["discovery", discoverySector],
-    queryFn: () => discoveryApi.get(discoverySector),
+    queryKey: ["discovery", exchange, discoverySector],
+    queryFn: () => discoveryApi.get(discoverySector, exchange),
     enabled: mode === "discovery",
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -325,6 +343,24 @@ export function Screener() {
             ? "Top large-cap picks by sector, ranked by factor-based composite scores that adapt to each sector's characteristics."
             : "Small/mid-cap stocks ($300M–$5B) close to their Graham Number with fundamentals above a quality floor — names too small to ever appear in the large-cap screener."}
         </p>
+      </div>
+
+      {/* Market toggle */}
+      <div className="flex gap-1.5">
+        {EXCHANGES.map((ex) => (
+          <button
+            key={ex.id}
+            onClick={() => setExchange(ex.id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              exchange === ex.id
+                ? "bg-blue-500/10 text-blue-400 border border-blue-500/30"
+                : "bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-200"
+            }`}
+          >
+            <span>{ex.flag}</span>
+            {ex.label}
+          </button>
+        ))}
       </div>
 
       {/* Mode toggle */}
@@ -436,8 +472,8 @@ export function Screener() {
               <span className="text-white font-semibold">{discoveryQuery.data.results.length}</span> matched
             </p>
             <p className="text-xs text-gray-600">
-              {formatMarketCap(discoveryQuery.data.market_cap_floor)}–
-              {formatMarketCap(discoveryQuery.data.market_cap_ceiling)} market cap · ±
+              {formatMarketCap(discoveryQuery.data.market_cap_floor, discoveryQuery.data.currency)}–
+              {formatMarketCap(discoveryQuery.data.market_cap_ceiling, discoveryQuery.data.currency)} market cap · ±
               {discoveryQuery.data.deviation_band_pct}% of Graham Number
             </p>
           </div>
@@ -451,7 +487,7 @@ export function Screener() {
           ) : (
             <div className="space-y-3">
               {discoveryQuery.data.results.map((entry, i) => (
-                <DiscoveryCard key={entry.ticker} entry={entry} rank={i + 1} />
+                <DiscoveryCard key={entry.ticker} entry={entry} rank={i + 1} currency={discoveryQuery.data!.currency} />
               ))}
             </div>
           )}

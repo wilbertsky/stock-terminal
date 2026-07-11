@@ -204,6 +204,10 @@ export interface ScreenerEntry {
 
 export interface SectorScreenerResponse {
   sector: string;
+  /** Exchange slug this result was screened against, e.g. "us" or "lse". */
+  exchange: string;
+  /** ISO 4217 currency code for prices on this exchange, e.g. "USD" or "GBP". */
+  currency: string;
   /** Name of the scoring model used (e.g. "Standard", "Financials", "Real Estate") */
   scoring_model: string;
   /** Human-readable labels for score_a, score_b, score_c, score_d */
@@ -216,8 +220,10 @@ export interface SectorScreenerResponse {
 }
 
 export const screenerApi = {
-  getSector: (sector: string) =>
-    request<SectorScreenerResponse>(`/api/screener/${sector}`),
+  getSector: (sector: string, exchange = "us") =>
+    request<SectorScreenerResponse>(
+      `/api/screener/${sector}${exchange !== "us" ? `?exchange=${exchange}` : ""}`
+    ),
 };
 
 // ── Discovery (small/mid-cap near-miss screener) ───────────────────────────────
@@ -245,6 +251,10 @@ export interface DiscoveryEntry {
 
 export interface DiscoveryResponse {
   sector: string;
+  /** Exchange slug this result was screened against, e.g. "us" or "lse". */
+  exchange: string;
+  /** ISO 4217 currency code for prices on this exchange, e.g. "USD" or "GBP". */
+  currency: string;
   market_cap_floor: number;
   market_cap_ceiling: number;
   deviation_band_pct: number;
@@ -256,8 +266,10 @@ export interface DiscoveryResponse {
 export const discoveryApi = {
   // Sector is required — screening across all sectors at once was tried and dropped,
   // see Screener.tsx for why.
-  get: (sector: string) =>
-    request<DiscoveryResponse>(`/api/discovery?sector=${encodeURIComponent(sector)}`),
+  get: (sector: string, exchange = "us") =>
+    request<DiscoveryResponse>(
+      `/api/discovery?sector=${encodeURIComponent(sector)}${exchange !== "us" ? `&exchange=${exchange}` : ""}`
+    ),
 };
 
 export interface CompanyProfile {
