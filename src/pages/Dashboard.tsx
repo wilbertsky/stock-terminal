@@ -39,12 +39,7 @@ export function Dashboard() {
           positive={true}
           sub="SEC EDGAR · FMP"
         />
-        <StatCard
-          label="API Status"
-          value="Connected"
-          positive={true}
-          sub=""
-        />
+        <StatCard label="API Status" value="Connected" positive={true} sub="" />
       </div>
 
       {/* Quick actions */}

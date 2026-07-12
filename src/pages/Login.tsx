@@ -33,7 +33,12 @@ export function Login({ onLogin }: Props) {
     setLoading(true);
     try {
       if (mode === "register") {
-        await auth.register(email, password, inviteCode.trim(), displayName.trim() || undefined);
+        await auth.register(
+          email,
+          password,
+          inviteCode.trim(),
+          displayName.trim() || undefined,
+        );
       }
       if (mode === "login" || mode === "register") {
         const res = await auth.login(email, password);
@@ -43,7 +48,9 @@ export function Login({ onLogin }: Props) {
       }
       if (mode === "forgot") {
         await auth.forgotPassword(email);
-        setInfo("If that email is registered you'll receive a reset code shortly. Enter it below.");
+        setInfo(
+          "If that email is registered you'll receive a reset code shortly. Enter it below.",
+        );
         switchMode("reset");
         return;
       }
@@ -69,10 +76,10 @@ export function Login({ onLogin }: Props) {
   }
 
   const titles: Record<Mode, string> = {
-    login:    "Sign in",
+    login: "Sign in",
     register: "Create account",
-    forgot:   "Reset password",
-    reset:    "Set new password",
+    forgot: "Reset password",
+    reset: "Set new password",
   };
 
   return (
@@ -84,19 +91,25 @@ export function Login({ onLogin }: Props) {
             <TrendingUp size={28} className="text-emerald-400" />
             Stock Terminal
           </h1>
-          <p className="text-gray-500 text-sm mt-2">Quantitative stock analysis</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Quantitative stock analysis
+          </p>
         </div>
 
         {/* Card */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
-          <h2 className="text-white font-semibold text-lg mb-6">{titles[mode]}</h2>
+          <h2 className="text-white font-semibold text-lg mb-6">
+            {titles[mode]}
+          </h2>
 
           <form onSubmit={submit} className="space-y-4">
             {/* Register fields */}
             {mode === "register" && (
               <>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Invite code</label>
+                  <label className="text-xs text-gray-400 block mb-1">
+                    Invite code
+                  </label>
                   <input
                     type="text"
                     value={inviteCode}
@@ -108,7 +121,8 @@ export function Login({ onLogin }: Props) {
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">
-                    Display name <span className="text-gray-600">(optional)</span>
+                    Display name{" "}
+                    <span className="text-gray-600">(optional)</span>
                   </label>
                   <input
                     type="text"
@@ -125,7 +139,9 @@ export function Login({ onLogin }: Props) {
             {/* Email — shown on login, register, forgot */}
             {mode !== "reset" && (
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Email</label>
+                <label className="text-xs text-gray-400 block mb-1">
+                  Email
+                </label>
                 <input
                   type="email"
                   value={email}
@@ -168,7 +184,9 @@ export function Login({ onLogin }: Props) {
             {mode === "reset" && (
               <>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Reset code</label>
+                  <label className="text-xs text-gray-400 block mb-1">
+                    Reset code
+                  </label>
                   <input
                     type="text"
                     value={resetToken}
@@ -179,7 +197,9 @@ export function Login({ onLogin }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">New password</label>
+                  <label className="text-xs text-gray-400 block mb-1">
+                    New password
+                  </label>
                   <input
                     type="password"
                     value={newPassword}
@@ -191,7 +211,9 @@ export function Login({ onLogin }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Confirm new password</label>
+                  <label className="text-xs text-gray-400 block mb-1">
+                    Confirm new password
+                  </label>
                   <input
                     type="password"
                     value={confirmPassword}
@@ -220,12 +242,14 @@ export function Login({ onLogin }: Props) {
               disabled={loading}
               className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-gray-950 font-semibold rounded-lg py-2 text-sm transition-colors"
             >
-              {loading ? "Please wait…" : {
-                login:    "Sign in",
-                register: "Create account",
-                forgot:   "Send reset code",
-                reset:    "Set new password",
-              }[mode]}
+              {loading
+                ? "Please wait…"
+                : {
+                    login: "Sign in",
+                    register: "Create account",
+                    forgot: "Send reset code",
+                    reset: "Set new password",
+                  }[mode]}
             </button>
           </form>
 
@@ -235,7 +259,9 @@ export function Login({ onLogin }: Props) {
               <p>
                 {mode === "login" ? "No account? " : "Already have one? "}
                 <button
-                  onClick={() => switchMode(mode === "login" ? "register" : "login")}
+                  onClick={() =>
+                    switchMode(mode === "login" ? "register" : "login")
+                  }
                   className="text-emerald-400 hover:underline"
                 >
                   {mode === "login" ? "Register" : "Sign in"}
