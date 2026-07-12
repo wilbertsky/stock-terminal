@@ -32,52 +32,63 @@ export function DisclaimerModal({ onClose }: Props) {
 
         <div className="space-y-4 text-sm text-gray-400 leading-relaxed">
           <p>
-            <span className="text-white font-medium">Not investment advice.</span>{" "}
-            All analysis, scores, valuations, and data provided by this application
-            are for <span className="text-white">educational and informational purposes only</span>.
-            Nothing in this application constitutes investment advice, a solicitation,
-            or a recommendation to buy, sell, or hold any security or financial instrument.
+            <span className="text-white font-medium">
+              Not investment advice.
+            </span>{" "}
+            All analysis, scores, valuations, and data provided by this
+            application are for{" "}
+            <span className="text-white">
+              educational and informational purposes only
+            </span>
+            . Nothing in this application constitutes investment advice, a
+            solicitation, or a recommendation to buy, sell, or hold any security
+            or financial instrument.
           </p>
 
           <p>
-            <span className="text-white font-medium">No guarantee of accuracy.</span>{" "}
-            Financial data is sourced from free public providers (SEC EDGAR, Yahoo Finance)
-            and may be incomplete, delayed, or inaccurate.
-            Calculated metrics — including Piotroski F-Score, DCF intrinsic value, Graham
-            number, momentum scores, and composite screener rankings — are derived from
-            this data and are subject to the same limitations.
+            <span className="text-white font-medium">
+              No guarantee of accuracy.
+            </span>{" "}
+            Financial data is sourced from free public providers (SEC EDGAR) and
+            one subscribed (FMP) and may be incomplete, delayed, or inaccurate.
+            Calculated metrics — including Piotroski F-Score, DCF intrinsic
+            value, Graham number, momentum scores, and composite screener
+            rankings — are derived from this data and are subject to the same
+            limitations.
           </p>
 
           <p>
             <span className="text-white font-medium">Past performance.</span>{" "}
-            Historical financial data and past stock performance are not indicative
-            of future results. Quantitative scores and rankings do not predict or
-            guarantee future returns.
+            Historical financial data and past stock performance are not
+            indicative of future results. Quantitative scores and rankings do
+            not predict or guarantee future returns.
           </p>
 
           <p>
-            <span className="text-white font-medium">Consult a professional.</span>{" "}
+            <span className="text-white font-medium">
+              Consult a professional.
+            </span>{" "}
             Before making any investment decision, you should conduct your own
-            independent research and consult a licensed financial advisor, broker,
-            or investment professional who can take into account your specific
-            financial situation, goals, and risk tolerance.
+            independent research and consult a licensed financial advisor,
+            broker, or investment professional who can take into account your
+            specific financial situation, goals, and risk tolerance.
           </p>
 
           <p>
-            <span className="text-white font-medium">No liability.</span>{" "}
-            The authors and operators of this application accept no liability for
-            any financial loss, damage, or consequence arising from the use of or
-            reliance on information provided herein.
+            <span className="text-white font-medium">No liability.</span> The
+            authors and operators of this application accept no liability for
+            any financial loss, damage, or consequence arising from the use of
+            or reliance on information provided herein.
           </p>
 
           <p className="text-gray-600 text-xs border-t border-gray-800 pt-4">
-            This tool is a personal project built for learning and research. It is
-            not affiliated with, endorsed by, or registered with any financial
-            regulatory authority including the SEC, FINRA, or FCA.
+            This tool is a personal project built for learning and research. It
+            is not affiliated with, endorsed by, or registered with any
+            financial regulatory authority including the SEC, FINRA, or FCA.
           </p>
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -4,7 +4,7 @@ A desktop and web app for fundamental stock analysis, built with Tauri + React +
 
 ## Data Sources
 
-Financial data is sourced from **SEC EDGAR** (fundamental filings) and **Yahoo Finance** (prices and search). No API key required — both are free public sources.
+Financial data is sourced from **SEC EDGAR** (fundamental filings) and **FMP** (prices and search). No API key required — both are free public sources.
 
 ## Features
 

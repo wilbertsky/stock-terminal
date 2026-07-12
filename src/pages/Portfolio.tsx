@@ -9,12 +9,7 @@ import {
 import { CompanyLogo } from "../components/CompanyLogo";
 import { TickerTooltip } from "../components/TickerTooltip";
 import { StatCard } from "../components/StatCard";
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import {
   Plus,
   Trash2,
@@ -29,21 +24,30 @@ import {
   Lock,
 } from "lucide-react";
 
-const COLORS = ["#34d399", "#818cf8", "#f472b6", "#fb923c", "#38bdf8", "#a78bfa", "#fbbf24", "#60a5fa"];
+const COLORS = [
+  "#34d399",
+  "#818cf8",
+  "#f472b6",
+  "#fb923c",
+  "#38bdf8",
+  "#a78bfa",
+  "#fbbf24",
+  "#60a5fa",
+];
 
 // ── Heatmap helpers ───────────────────────────────────────────────────────────
 
 /** Returns Tailwind bg + text classes for a return % value. */
 function heatColor(pct: number): { bg: string; text: string } {
-  if (pct >= 50)  return { bg: "bg-emerald-500/30", text: "text-emerald-300" };
-  if (pct >= 20)  return { bg: "bg-emerald-500/20", text: "text-emerald-400" };
-  if (pct >= 5)   return { bg: "bg-emerald-500/10", text: "text-emerald-400" };
-  if (pct > 0)    return { bg: "bg-emerald-500/5",  text: "text-emerald-500" };
-  if (pct === 0)  return { bg: "",                  text: "text-gray-400"    };
-  if (pct >= -5)  return { bg: "bg-red-500/5",      text: "text-red-500"     };
-  if (pct >= -20) return { bg: "bg-red-500/10",     text: "text-red-400"     };
-  if (pct >= -50) return { bg: "bg-red-500/20",     text: "text-red-400"     };
-  return           { bg: "bg-red-500/30",            text: "text-red-300"     };
+  if (pct >= 50) return { bg: "bg-emerald-500/30", text: "text-emerald-300" };
+  if (pct >= 20) return { bg: "bg-emerald-500/20", text: "text-emerald-400" };
+  if (pct >= 5) return { bg: "bg-emerald-500/10", text: "text-emerald-400" };
+  if (pct > 0) return { bg: "bg-emerald-500/5", text: "text-emerald-500" };
+  if (pct === 0) return { bg: "", text: "text-gray-400" };
+  if (pct >= -5) return { bg: "bg-red-500/5", text: "text-red-500" };
+  if (pct >= -20) return { bg: "bg-red-500/10", text: "text-red-400" };
+  if (pct >= -50) return { bg: "bg-red-500/20", text: "text-red-400" };
+  return { bg: "bg-red-500/30", text: "text-red-300" };
 }
 
 // ── Aggregated holding ────────────────────────────────────────────────────────
@@ -57,19 +61,31 @@ type AggregatedHolding = {
   return_pct: number;
 };
 
-function aggregateHoldings(holdings: HoldingPerformance[]): AggregatedHolding[] {
+function aggregateHoldings(
+  holdings: HoldingPerformance[],
+): AggregatedHolding[] {
   const map: Record<string, HoldingPerformance[]> = {};
   for (const h of holdings) {
     (map[h.ticker] ??= []).push(h);
   }
   return Object.entries(map).map(([ticker, lots]) => {
     const totalShares = lots.reduce((s, h) => s + (h.shares ?? 0), 0);
-    const avgCost = totalShares > 0
-      ? lots.reduce((s, h) => s + h.price_at_add * (h.shares ?? 0), 0) / totalShares
-      : lots[0].price_at_add;
+    const avgCost =
+      totalShares > 0
+        ? lots.reduce((s, h) => s + h.price_at_add * (h.shares ?? 0), 0) /
+          totalShares
+        : lots[0].price_at_add;
     const currentPrice = lots[0].current_price;
-    const returnPct = avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
-    return { ticker, lots, total_shares: totalShares, avg_cost: avgCost, current_price: currentPrice, return_pct: returnPct };
+    const returnPct =
+      avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
+    return {
+      ticker,
+      lots,
+      total_shares: totalShares,
+      avg_cost: avgCost,
+      current_price: currentPrice,
+      return_pct: returnPct,
+    };
   });
 }
 
@@ -86,7 +102,7 @@ function SellModal({
 }) {
   const qc = useQueryClient();
   const [shares, setShares] = useState(
-    holding.shares != null ? String(holding.shares) : ""
+    holding.shares != null ? String(holding.shares) : "",
   );
   const [price, setPrice] = useState("");
   const [date, setDate] = useState("");
@@ -108,7 +124,7 @@ function SellModal({
         holding.id,
         parsedShares,
         price ? parseFloat(price) : undefined,
-        date || undefined
+        date || undefined,
       );
       qc.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
       onClose();
@@ -123,51 +139,79 @@ function SellModal({
     shares && price
       ? (parseFloat(price) - holding.price_at_add) * parseFloat(shares)
       : null;
-  const marketGain =
-    shares
-      ? (holding.current_price - holding.price_at_add) * parseFloat(shares)
-      : null;
+  const marketGain = shares
+    ? (holding.current_price - holding.price_at_add) * parseFloat(shares)
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h3 className="text-white font-bold text-base mb-4">Sell {holding.ticker}</h3>
+        <h3 className="text-white font-bold text-base mb-4">
+          Sell {holding.ticker}
+        </h3>
         <form onSubmit={handleSell} className="space-y-3">
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Shares to sell</label>
-            <input value={shares} onChange={(e) => setShares(e.target.value)}
-              type="number" min="0.000001" step="any"
-              placeholder={holding.shares != null ? String(holding.shares) : "e.g. 10"}
+            <label className="text-xs text-gray-400 block mb-1">
+              Shares to sell
+            </label>
+            <input
+              value={shares}
+              onChange={(e) => setShares(e.target.value)}
+              type="number"
+              min="0.000001"
+              step="any"
+              placeholder={
+                holding.shares != null ? String(holding.shares) : "e.g. 10"
+              }
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-              required />
+              required
+            />
             {holding.shares != null && (
-              <p className="text-xs text-gray-600 mt-1">Currently holding {holding.shares} shares</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Currently holding {holding.shares} shares
+              </p>
             )}
           </div>
           <div>
             <label className="text-xs text-gray-400 block mb-1">
               Sale price per share{" "}
-              <span className="text-gray-600">(leave blank for today's market price)</span>
+              <span className="text-gray-600">
+                (leave blank for today's market price)
+              </span>
             </label>
-            <input value={price} onChange={(e) => setPrice(e.target.value)}
-              type="number" min="0" step="any"
+            <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              type="number"
+              min="0"
+              step="any"
               placeholder={`Market: $${holding.current_price.toFixed(2)}`}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
           </div>
           <div>
             <label className="text-xs text-gray-400 block mb-1">
-              Sale date <span className="text-gray-600">(leave blank for today)</span>
+              Sale date{" "}
+              <span className="text-gray-600">(leave blank for today)</span>
             </label>
-            <input value={date} onChange={(e) => setDate(e.target.value)}
-              type="date" max={new Date().toISOString().split("T")[0]}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 [color-scheme:dark]" />
+            <input
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              type="date"
+              max={new Date().toISOString().split("T")[0]}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 [color-scheme:dark]"
+            />
           </div>
           {(estGain !== null || marketGain !== null) && (
             <div className="bg-gray-800/60 rounded-lg px-3 py-2 text-xs space-y-1">
               {marketGain !== null && !price && (
                 <div className="flex justify-between">
                   <span className="text-gray-400">Est. at market price</span>
-                  <span className={marketGain >= 0 ? "text-emerald-400" : "text-red-400"}>
+                  <span
+                    className={
+                      marketGain >= 0 ? "text-emerald-400" : "text-red-400"
+                    }
+                  >
                     {marketGain >= 0 ? "+" : ""}${marketGain.toFixed(2)}
                   </span>
                 </div>
@@ -175,7 +219,11 @@ function SellModal({
               {estGain !== null && price && (
                 <div className="flex justify-between">
                   <span className="text-gray-400">Est. realized gain</span>
-                  <span className={estGain >= 0 ? "text-emerald-400" : "text-red-400"}>
+                  <span
+                    className={
+                      estGain >= 0 ? "text-emerald-400" : "text-red-400"
+                    }
+                  >
                     {estGain >= 0 ? "+" : ""}${estGain.toFixed(2)}
                   </span>
                 </div>
@@ -188,12 +236,18 @@ function SellModal({
           )}
           {error && <p className="text-red-400 text-xs">{error}</p>}
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose}
-              className="flex-1 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg py-2 transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg py-2 transition-colors"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={saving}
-              className="flex-1 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-400 disabled:opacity-50 rounded-lg py-2 transition-colors">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-400 disabled:opacity-50 rounded-lg py-2 transition-colors"
+            >
               {saving ? "Recording…" : "Record Sale"}
             </button>
           </div>
@@ -211,7 +265,9 @@ function PortfolioDetail({ id }: { id: string }) {
   const [addShares, setAddShares] = useState("");
   const [addDate, setAddDate] = useState("");
   const [adding, setAdding] = useState(false);
-  const [sellHolding, setSellHolding] = useState<HoldingPerformance | null>(null);
+  const [sellHolding, setSellHolding] = useState<HoldingPerformance | null>(
+    null,
+  );
   const [showClosed, setShowClosed] = useState(false);
   const [expandedLots, setExpandedLots] = useState<Record<string, boolean>>({});
 
@@ -232,28 +288,35 @@ function PortfolioDetail({ id }: { id: string }) {
   });
 
   const removeMut = useMutation({
-    mutationFn: ({ hId }: { hId: string }) => portfolioApi.removeHolding(id, hId),
+    mutationFn: ({ hId }: { hId: string }) =>
+      portfolioApi.removeHolding(id, hId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["portfolio", id] }),
   });
 
   const visibilityMut = useMutation({
-    mutationFn: (is_public: boolean) => portfolioApi.updateVisibility(id, is_public),
+    mutationFn: (is_public: boolean) =>
+      portfolioApi.updateVisibility(id, is_public),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portfolio", id] });
       qc.invalidateQueries({ queryKey: ["portfolios"] });
     },
   });
 
-async function addHolding(e: React.FormEvent) {
+  async function addHolding(e: React.FormEvent) {
     e.preventDefault();
     const ticker = addTicker.trim().toUpperCase();
     if (!ticker) return;
     setAdding(true);
     try {
-      await portfolioApi.addHolding(id, ticker,
+      await portfolioApi.addHolding(
+        id,
+        ticker,
         addShares ? parseFloat(addShares) : undefined,
-        addDate || undefined);
-      setAddTicker(""); setAddShares(""); setAddDate("");
+        addDate || undefined,
+      );
+      setAddTicker("");
+      setAddShares("");
+      setAddDate("");
       qc.invalidateQueries({ queryKey: ["portfolio", id] });
     } finally {
       setAdding(false);
@@ -268,10 +331,16 @@ async function addHolding(e: React.FormEvent) {
     setImportResults([]);
     try {
       const response = await portfolioApi.importHoldings(id, file);
-      setImportResults(response.rows.map((r) => ({
-        row: r.row, ticker: r.ticker, ok: r.ok,
-        msg: r.ok ? `Added at $${r.price_used?.toFixed(2) ?? "?"}` : (r.error ?? "Unknown error"),
-      })));
+      setImportResults(
+        response.rows.map((r) => ({
+          row: r.row,
+          ticker: r.ticker,
+          ok: r.ok,
+          msg: r.ok
+            ? `Added at $${r.price_used?.toFixed(2) ?? "?"}`
+            : (r.error ?? "Unknown error"),
+        })),
+      );
       qc.invalidateQueries({ queryKey: ["portfolio", id] });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Import failed";
@@ -281,9 +350,11 @@ async function addHolding(e: React.FormEvent) {
     }
   }
 
-  if (q.isLoading) return <p className="text-gray-400 text-sm py-4">Loading portfolio…</p>;
-  if (q.isError)   return <p className="text-red-400 text-sm py-4">{q.error.message}</p>;
-  if (!q.data)     return null;
+  if (q.isLoading)
+    return <p className="text-gray-400 text-sm py-4">Loading portfolio…</p>;
+  if (q.isError)
+    return <p className="text-red-400 text-sm py-4">{q.error.message}</p>;
+  if (!q.data) return null;
 
   const { portfolio, holdings, total_return_pct, realized } = q.data;
   const hasRealized = realized.rows.length > 0;
@@ -294,7 +365,6 @@ async function addHolding(e: React.FormEvent) {
     .filter((a) => a.total_shares > 0)
     .map((a) => ({ name: a.ticker, value: a.avg_cost * a.total_shares }));
 
-
   return (
     <div className="space-y-5">
       {/* Summary stat cards */}
@@ -302,30 +372,42 @@ async function addHolding(e: React.FormEvent) {
         <StatCard label="Holdings" value={aggregated.length} />
         <StatCard
           label="Unrealized Return"
-          value={total_return_pct != null
-            ? `${total_return_pct >= 0 ? "+" : ""}${total_return_pct.toFixed(2)}%`
-            : "—"}
+          value={
+            total_return_pct != null
+              ? `${total_return_pct >= 0 ? "+" : ""}${total_return_pct.toFixed(2)}%`
+              : "—"
+          }
           positive={total_return_pct != null ? total_return_pct >= 0 : null}
         />
         <StatCard
           label="Realized P&L"
-          value={hasRealized
-            ? `${realized.total_realized_gain >= 0 ? "+" : ""}$${Math.abs(realized.total_realized_gain).toFixed(2)}`
-            : "—"}
+          value={
+            hasRealized
+              ? `${realized.total_realized_gain >= 0 ? "+" : ""}$${Math.abs(realized.total_realized_gain).toFixed(2)}`
+              : "—"
+          }
           positive={hasRealized ? realized.total_realized_gain >= 0 : null}
         />
         {/* Visibility — clickable toggle */}
         <button
           onClick={() => visibilityMut.mutate(!portfolio.is_public)}
           disabled={visibilityMut.isPending}
-          title={portfolio.is_public ? "Click to make private" : "Click to make public"}
+          title={
+            portfolio.is_public
+              ? "Click to make private"
+              : "Click to make public"
+          }
           className="group bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl p-4 min-w-0 text-left transition-colors w-full"
         >
-          <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Visibility</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+            Visibility
+          </p>
           <p className="text-xl font-bold text-white flex items-center gap-1.5 truncate">
-            {portfolio.is_public
-              ? <Globe size={16} className="text-emerald-400 flex-shrink-0" />
-              : <Lock size={16} className="text-gray-500 flex-shrink-0" />}
+            {portfolio.is_public ? (
+              <Globe size={16} className="text-emerald-400 flex-shrink-0" />
+            ) : (
+              <Lock size={16} className="text-gray-500 flex-shrink-0" />
+            )}
             {portfolio.is_public ? "Public" : "Private"}
           </p>
           <p className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors mt-0.5">
@@ -337,10 +419,11 @@ async function addHolding(e: React.FormEvent) {
       {/* Charts */}
       {pieData.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
           {/* Allocation donut */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <h5 className="text-sm font-semibold text-gray-300 mb-3">Allocation</h5>
+            <h5 className="text-sm font-semibold text-gray-300 mb-3">
+              Allocation
+            </h5>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
@@ -351,14 +434,18 @@ async function addHolding(e: React.FormEvent) {
                   outerRadius={80}
                   dataKey="value"
                   paddingAngle={3}
-                  onMouseEnter={(_, index) => setActiveTicker(pieData[index].name)}
+                  onMouseEnter={(_, index) =>
+                    setActiveTicker(pieData[index].name)
+                  }
                   onMouseLeave={() => setActiveTicker(null)}
                 >
                   {pieData.map((d, i) => (
                     <Cell
                       key={i}
                       fill={COLORS[i % COLORS.length]}
-                      opacity={activeTicker && d.name !== activeTicker ? 0.3 : 1}
+                      opacity={
+                        activeTicker && d.name !== activeTicker ? 0.3 : 1
+                      }
                       stroke={activeTicker === d.name ? "#fff" : "transparent"}
                       strokeWidth={activeTicker === d.name ? 2 : 0}
                     />
@@ -378,8 +465,10 @@ async function addHolding(e: React.FormEvent) {
                   onMouseEnter={() => setActiveTicker(d.name)}
                   onMouseLeave={() => setActiveTicker(null)}
                 >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: COLORS[i % COLORS.length] }} />
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: COLORS[i % COLORS.length] }}
+                  />
                   {d.name}
                 </span>
               ))}
@@ -388,7 +477,9 @@ async function addHolding(e: React.FormEvent) {
 
           {/* Return heatmap */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <h5 className="text-sm font-semibold text-gray-300 mb-3">Return per Position</h5>
+            <h5 className="text-sm font-semibold text-gray-300 mb-3">
+              Return per Position
+            </h5>
             <div className="space-y-1 max-h-[220px] overflow-y-auto pr-1">
               {[...aggregated]
                 .sort((a, b) => b.return_pct - a.return_pct)
@@ -404,11 +495,16 @@ async function addHolding(e: React.FormEvent) {
                       onMouseEnter={() => setActiveTicker(a.ticker)}
                       onMouseLeave={() => setActiveTicker(null)}
                     >
-                      <span className={`text-xs font-semibold ${isActive ? "text-white" : "text-gray-300"}`}>
+                      <span
+                        className={`text-xs font-semibold ${isActive ? "text-white" : "text-gray-300"}`}
+                      >
                         {a.ticker}
                       </span>
-                      <span className={`text-xs font-bold tabular-nums ${text}`}>
-                        {a.return_pct >= 0 ? "+" : ""}{a.return_pct.toFixed(2)}%
+                      <span
+                        className={`text-xs font-bold tabular-nums ${text}`}
+                      >
+                        {a.return_pct >= 0 ? "+" : ""}
+                        {a.return_pct.toFixed(2)}%
                       </span>
                     </div>
                   );
@@ -421,7 +517,9 @@ async function addHolding(e: React.FormEvent) {
       {/* Holdings table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-800">
-          <h5 className="text-sm font-semibold text-gray-300">Open Positions</h5>
+          <h5 className="text-sm font-semibold text-gray-300">
+            Open Positions
+          </h5>
         </div>
         {aggregated.length === 0 ? (
           <p className="text-gray-500 text-sm px-4 py-6 text-center">
@@ -429,152 +527,219 @@ async function addHolding(e: React.FormEvent) {
           </p>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
-                <th className="text-left px-3 py-2">Ticker</th>
-                <th className="hidden sm:table-cell text-right px-3 py-2">Avg Cost</th>
-                <th className="hidden sm:table-cell text-right px-3 py-2">Current</th>
-                <th className="text-right px-3 py-2">Return</th>
-                <th className="hidden sm:table-cell text-right px-3 py-2">Shares</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {aggregated.map((a) => {
-                const isActive = activeTicker === a.ticker;
-                const colorIndex = pieData.findIndex((d) => d.name === a.ticker);
-                const dotColor = COLORS[colorIndex % COLORS.length];
-                const { bg, text } = heatColor(a.return_pct);
-                const hasLots = a.lots.length > 1;
-                const lotsExpanded = expandedLots[a.ticker] ?? false;
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
+                  <th className="text-left px-3 py-2">Ticker</th>
+                  <th className="hidden sm:table-cell text-right px-3 py-2">
+                    Avg Cost
+                  </th>
+                  <th className="hidden sm:table-cell text-right px-3 py-2">
+                    Current
+                  </th>
+                  <th className="text-right px-3 py-2">Return</th>
+                  <th className="hidden sm:table-cell text-right px-3 py-2">
+                    Shares
+                  </th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {aggregated.map((a) => {
+                  const isActive = activeTicker === a.ticker;
+                  const colorIndex = pieData.findIndex(
+                    (d) => d.name === a.ticker,
+                  );
+                  const dotColor = COLORS[colorIndex % COLORS.length];
+                  const { bg, text } = heatColor(a.return_pct);
+                  const hasLots = a.lots.length > 1;
+                  const lotsExpanded = expandedLots[a.ticker] ?? false;
 
-                return (
-                  <>
-                    <tr
-                      key={a.ticker}
-                      ref={(el) => { rowRefs.current[a.ticker] = el; }}
-                      className={`border-b border-gray-800/60 transition-all ${
-                        isActive ? "bg-gray-800/60" : "hover:bg-gray-800/30"
-                      } ${isActive ? "border-l-2" : ""}`}
-                      style={isActive ? { borderLeftColor: dotColor } : undefined}
-                      onMouseEnter={() => setActiveTicker(a.ticker)}
-                      onMouseLeave={() => setActiveTicker(null)}
-                    >
-                      <td className="px-3 py-2.5">
-                        <TickerTooltip ticker={a.ticker}>
-                          <span className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ background: dotColor }} />
-                            <CompanyLogo ticker={a.ticker} size="sm" />
-                            <span className="font-semibold text-white">{a.ticker}</span>
-                            {hasLots && (
-                              <span className="text-xs text-gray-600">{a.lots.length} lots</span>
-                            )}
-                          </span>
-                        </TickerTooltip>
-                      </td>
-                      <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-300">
-                        ${a.avg_cost.toFixed(2)}
-                      </td>
-                      <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-300">
-                        ${a.current_price.toFixed(2)}
-                      </td>
-                      <td className={`px-3 py-2.5 text-right font-semibold ${text} ${bg} rounded`}>
-                        {a.return_pct >= 0 ? "+" : ""}{a.return_pct.toFixed(2)}%
-                      </td>
-                      <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-400">
-                        {a.total_shares > 0 ? a.total_shares.toFixed(a.total_shares % 1 === 0 ? 0 : 4) : "—"}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {!hasLots && (
-                            <button
-                              onClick={() => setSellHolding(a.lots[0])}
-                              className="text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 hover:border-amber-500/40 transition-colors"
-                            >
-                              Sell
-                            </button>
-                          )}
-                          {hasLots && (
-                            <button
-                              onClick={() => setExpandedLots((prev) => ({ ...prev, [a.ticker]: !lotsExpanded }))}
-                              className="text-xs px-2 py-1 rounded bg-gray-700/50 hover:bg-gray-700 text-gray-400 border border-gray-700 transition-colors flex items-center gap-1"
-                            >
-                              Lots {lotsExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                            </button>
-                          )}
-                          {!hasLots && (
-                            <button
-                              onClick={() => removeMut.mutate({ hId: a.lots[0].id })}
-                              className="text-gray-600 hover:text-red-400 transition-colors"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Expanded lots rows */}
-                    {hasLots && lotsExpanded && a.lots.map((lot) => (
-                      <tr key={lot.id} className="border-b border-gray-800/30 bg-gray-800/20">
-                        <td className="pl-8 pr-3 py-2 text-xs text-gray-500">
-                          Lot · {new Date(lot.added_at).toLocaleDateString()}
+                  return (
+                    <>
+                      <tr
+                        key={a.ticker}
+                        ref={(el) => {
+                          rowRefs.current[a.ticker] = el;
+                        }}
+                        className={`border-b border-gray-800/60 transition-all ${
+                          isActive ? "bg-gray-800/60" : "hover:bg-gray-800/30"
+                        } ${isActive ? "border-l-2" : ""}`}
+                        style={
+                          isActive ? { borderLeftColor: dotColor } : undefined
+                        }
+                        onMouseEnter={() => setActiveTicker(a.ticker)}
+                        onMouseLeave={() => setActiveTicker(null)}
+                      >
+                        <td className="px-3 py-2.5">
+                          <TickerTooltip ticker={a.ticker}>
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{ background: dotColor }}
+                              />
+                              <CompanyLogo ticker={a.ticker} size="sm" />
+                              <span className="font-semibold text-white">
+                                {a.ticker}
+                              </span>
+                              {hasLots && (
+                                <span className="text-xs text-gray-600">
+                                  {a.lots.length} lots
+                                </span>
+                              )}
+                            </span>
+                          </TickerTooltip>
                         </td>
-                        <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
-                          ${lot.price_at_add.toFixed(2)}
+                        <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-300">
+                          ${a.avg_cost.toFixed(2)}
                         </td>
-                        <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
-                          ${lot.current_price.toFixed(2)}
+                        <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-300">
+                          ${a.current_price.toFixed(2)}
                         </td>
-                        <td className={`px-3 py-2 text-right text-xs font-semibold ${lot.return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {lot.return_pct >= 0 ? "+" : ""}{lot.return_pct.toFixed(2)}%
+                        <td
+                          className={`px-3 py-2.5 text-right font-semibold ${text} ${bg} rounded`}
+                        >
+                          {a.return_pct >= 0 ? "+" : ""}
+                          {a.return_pct.toFixed(2)}%
                         </td>
-                        <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
-                          {lot.shares ?? "—"}
+                        <td className="hidden sm:table-cell px-3 py-2.5 text-right text-gray-400">
+                          {a.total_shares > 0
+                            ? a.total_shares.toFixed(
+                                a.total_shares % 1 === 0 ? 0 : 4,
+                              )
+                            : "—"}
                         </td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setSellHolding(lot)}
-                              className="text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors"
-                            >
-                              Sell
-                            </button>
-                            <button
-                              onClick={() => removeMut.mutate({ hId: lot.id })}
-                              className="text-gray-600 hover:text-red-400 transition-colors"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            {!hasLots && (
+                              <button
+                                onClick={() => setSellHolding(a.lots[0])}
+                                className="text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 hover:border-amber-500/40 transition-colors"
+                              >
+                                Sell
+                              </button>
+                            )}
+                            {hasLots && (
+                              <button
+                                onClick={() =>
+                                  setExpandedLots((prev) => ({
+                                    ...prev,
+                                    [a.ticker]: !lotsExpanded,
+                                  }))
+                                }
+                                className="text-xs px-2 py-1 rounded bg-gray-700/50 hover:bg-gray-700 text-gray-400 border border-gray-700 transition-colors flex items-center gap-1"
+                              >
+                                Lots{" "}
+                                {lotsExpanded ? (
+                                  <ChevronUp size={10} />
+                                ) : (
+                                  <ChevronDown size={10} />
+                                )}
+                              </button>
+                            )}
+                            {!hasLots && (
+                              <button
+                                onClick={() =>
+                                  removeMut.mutate({ hId: a.lots[0].id })
+                                }
+                                className="text-gray-600 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
+
+                      {/* Expanded lots rows */}
+                      {hasLots &&
+                        lotsExpanded &&
+                        a.lots.map((lot) => (
+                          <tr
+                            key={lot.id}
+                            className="border-b border-gray-800/30 bg-gray-800/20"
+                          >
+                            <td className="pl-8 pr-3 py-2 text-xs text-gray-500">
+                              Lot ·{" "}
+                              {new Date(lot.added_at).toLocaleDateString()}
+                            </td>
+                            <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
+                              ${lot.price_at_add.toFixed(2)}
+                            </td>
+                            <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
+                              ${lot.current_price.toFixed(2)}
+                            </td>
+                            <td
+                              className={`px-3 py-2 text-right text-xs font-semibold ${lot.return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                            >
+                              {lot.return_pct >= 0 ? "+" : ""}
+                              {lot.return_pct.toFixed(2)}%
+                            </td>
+                            <td className="hidden sm:table-cell px-3 py-2 text-right text-xs text-gray-400">
+                              {lot.shares ?? "—"}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => setSellHolding(lot)}
+                                  className="text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors"
+                                >
+                                  Sell
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    removeMut.mutate({ hId: lot.id })
+                                  }
+                                  className="text-gray-600 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
         {/* Add holding form */}
-        <form onSubmit={addHolding} className="px-4 py-3 border-t border-gray-800 space-y-2">
+        <form
+          onSubmit={addHolding}
+          className="px-4 py-3 border-t border-gray-800 space-y-2"
+        >
           <div className="flex gap-2 flex-wrap">
-            <input value={addTicker} onChange={(e) => setAddTicker(e.target.value)}
+            <input
+              value={addTicker}
+              onChange={(e) => setAddTicker(e.target.value)}
               placeholder="Ticker (e.g. AAPL)"
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500 w-36" />
-            <input value={addShares} onChange={(e) => setAddShares(e.target.value)}
-              placeholder="Shares (optional)" type="number" min="0" step="any"
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500 w-36" />
-            <input value={addDate} onChange={(e) => setAddDate(e.target.value)}
-              type="date" max={new Date().toISOString().split("T")[0]}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500 w-36"
+            />
+            <input
+              value={addShares}
+              onChange={(e) => setAddShares(e.target.value)}
+              placeholder="Shares (optional)"
+              type="number"
+              min="0"
+              step="any"
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500 w-36"
+            />
+            <input
+              value={addDate}
+              onChange={(e) => setAddDate(e.target.value)}
+              type="date"
+              max={new Date().toISOString().split("T")[0]}
               title="Backdate this purchase (optional)"
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500 [color-scheme:dark]" />
-            <button type="submit" disabled={adding}
-              className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-gray-950 font-semibold px-3 py-1.5 rounded-lg text-sm transition-colors">
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500 [color-scheme:dark]"
+            />
+            <button
+              type="submit"
+              disabled={adding}
+              className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-gray-950 font-semibold px-3 py-1.5 rounded-lg text-sm transition-colors"
+            >
               <Plus size={14} />
               {adding ? "Looking up…" : "Add"}
             </button>
@@ -588,11 +753,17 @@ async function addHolding(e: React.FormEvent) {
             <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-400 hover:text-gray-200 transition-colors">
               <Upload size={13} />
               {importing ? "Importing…" : "Import CSV"}
-              <input type="file" accept=".csv,.xlsx,.xls" className="hidden"
-                disabled={importing} onChange={handleCsvImport} />
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+                disabled={importing}
+                onChange={handleCsvImport}
+              />
             </label>
             <span className="text-xs text-gray-600">
-              CSV or XLSX — columns: ticker, date (YYYY-MM-DD), shares, price (optional)
+              CSV or XLSX — columns: ticker, date (YYYY-MM-DD), shares, price
+              (optional)
             </span>
           </div>
         </form>
@@ -600,15 +771,27 @@ async function addHolding(e: React.FormEvent) {
         {importResults.length > 0 && (
           <div className="px-4 py-3 border-t border-gray-800 space-y-1 max-h-40 overflow-y-auto">
             {importResults.map((r) => (
-              <div key={`${r.row}-${r.ticker}`} className="flex items-center gap-2 text-xs">
-                {r.ok
-                  ? <CheckCircle size={13} className="text-emerald-400 flex-shrink-0" />
-                  : <XCircle size={13} className="text-red-400 flex-shrink-0" />}
+              <div
+                key={`${r.row}-${r.ticker}`}
+                className="flex items-center gap-2 text-xs"
+              >
+                {r.ok ? (
+                  <CheckCircle
+                    size={13}
+                    className="text-emerald-400 flex-shrink-0"
+                  />
+                ) : (
+                  <XCircle size={13} className="text-red-400 flex-shrink-0" />
+                )}
                 <span className="font-medium text-white w-16">{r.ticker}</span>
-                <span className={r.ok ? "text-gray-400" : "text-red-400"}>{r.msg}</span>
+                <span className={r.ok ? "text-gray-400" : "text-red-400"}>
+                  {r.msg}
+                </span>
               </div>
             ))}
-            {importing && <p className="text-xs text-gray-500 animate-pulse">Processing…</p>}
+            {importing && (
+              <p className="text-xs text-gray-500 animate-pulse">Processing…</p>
+            )}
           </div>
         )}
       </div>
@@ -622,58 +805,85 @@ async function addHolding(e: React.FormEvent) {
           >
             <div className="flex items-center gap-2">
               <TrendingDown size={14} className="text-gray-500" />
-              <h5 className="text-sm font-semibold text-gray-300">Closed Positions</h5>
-              <span className="text-xs text-gray-600">({realized.rows.length})</span>
-              <span className={`text-xs font-semibold ml-1 ${realized.total_realized_gain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                {realized.total_realized_gain >= 0 ? "+" : ""}${Math.abs(realized.total_realized_gain).toFixed(2)} total
+              <h5 className="text-sm font-semibold text-gray-300">
+                Closed Positions
+              </h5>
+              <span className="text-xs text-gray-600">
+                ({realized.rows.length})
+              </span>
+              <span
+                className={`text-xs font-semibold ml-1 ${realized.total_realized_gain >= 0 ? "text-emerald-400" : "text-red-400"}`}
+              >
+                {realized.total_realized_gain >= 0 ? "+" : ""}$
+                {Math.abs(realized.total_realized_gain).toFixed(2)} total
               </span>
             </div>
-            {showClosed ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+            {showClosed ? (
+              <ChevronUp size={14} className="text-gray-500" />
+            ) : (
+              <ChevronDown size={14} className="text-gray-500" />
+            )}
           </button>
           {showClosed && (
             <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-gray-500 uppercase border-t border-b border-gray-800">
-                  <th className="text-left px-4 py-2">Ticker</th>
-                  <th className="text-right px-4 py-2">Shares</th>
-                  <th className="text-right px-4 py-2">Cost</th>
-                  <th className="text-right px-4 py-2">Sale</th>
-                  <th className="text-right px-4 py-2">Gain / Loss</th>
-                  <th className="text-right px-4 py-2">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {realized.rows.map((r) => (
-                  <tr key={r.id} className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors">
-                    <td className="px-4 py-2.5">
-                      <span className="flex items-center gap-2">
-                        <CompanyLogo ticker={r.ticker} size="sm" />
-                        <span className="font-semibold text-white">{r.ticker}</span>
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-gray-400">
-                      {r.shares.toFixed(r.shares % 1 === 0 ? 0 : 4)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-gray-400">${r.cost_per_share.toFixed(2)}</td>
-                    <td className="px-4 py-2.5 text-right text-gray-300">${r.sale_price.toFixed(2)}</td>
-                    <td className={`px-4 py-2.5 text-right font-semibold ${r.realized_gain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {r.realized_gain >= 0 ? "+" : ""}${r.realized_gain.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-gray-500 text-xs">
-                      {new Date(r.sold_at).toLocaleDateString()}
-                    </td>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase border-t border-b border-gray-800">
+                    <th className="text-left px-4 py-2">Ticker</th>
+                    <th className="text-right px-4 py-2">Shares</th>
+                    <th className="text-right px-4 py-2">Cost</th>
+                    <th className="text-right px-4 py-2">Sale</th>
+                    <th className="text-right px-4 py-2">Gain / Loss</th>
+                    <th className="text-right px-4 py-2">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {realized.rows.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors"
+                    >
+                      <td className="px-4 py-2.5">
+                        <span className="flex items-center gap-2">
+                          <CompanyLogo ticker={r.ticker} size="sm" />
+                          <span className="font-semibold text-white">
+                            {r.ticker}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-400">
+                        {r.shares.toFixed(r.shares % 1 === 0 ? 0 : 4)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-400">
+                        ${r.cost_per_share.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-300">
+                        ${r.sale_price.toFixed(2)}
+                      </td>
+                      <td
+                        className={`px-4 py-2.5 text-right font-semibold ${r.realized_gain >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                      >
+                        {r.realized_gain >= 0 ? "+" : ""}$
+                        {r.realized_gain.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-500 text-xs">
+                        {new Date(r.sold_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       )}
 
       {sellHolding && (
-        <SellModal portfolioId={id} holding={sellHolding} onClose={() => setSellHolding(null)} />
+        <SellModal
+          portfolioId={id}
+          holding={sellHolding}
+          onClose={() => setSellHolding(null)}
+        />
       )}
     </div>
   );
@@ -719,7 +929,9 @@ export function Portfolio() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">Portfolio</h2>
-        <p className="text-gray-500 text-sm">Track holdings and monitor performance over time.</p>
+        <p className="text-gray-500 text-sm">
+          Track holdings and monitor performance over time.
+        </p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6">
@@ -736,17 +948,31 @@ export function Portfolio() {
               onClick={() => setSelectedId(p.id)}
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                <p className="text-sm font-medium text-white truncate">
+                  {p.name}
+                </p>
                 <p className="text-xs text-gray-500 flex items-center gap-1">
-                  {p.is_public
-                    ? <><Globe size={10} className="text-emerald-500" /> Public</>
-                    : <><Lock size={10} /> Private</>}
+                  {p.is_public ? (
+                    <>
+                      <Globe size={10} className="text-emerald-500" /> Public
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={10} /> Private
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <ChevronRight size={14} className={`text-gray-600 ${selectedId === p.id ? "text-emerald-400" : ""}`} />
+                <ChevronRight
+                  size={14}
+                  className={`text-gray-600 ${selectedId === p.id ? "text-emerald-400" : ""}`}
+                />
                 <button
-                  onClick={(e) => { e.stopPropagation(); deleteMut.mutate(p.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteMut.mutate(p.id);
+                  }}
                   className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all"
                 >
                   <Trash2 size={13} />
@@ -756,18 +982,30 @@ export function Portfolio() {
           ))}
 
           {/* Create form */}
-          <form onSubmit={createPortfolio}
-            className="bg-gray-900 border border-gray-800 border-dashed rounded-lg p-3 space-y-2">
-            <input value={newName} onChange={(e) => setNewName(e.target.value)}
+          <form
+            onSubmit={createPortfolio}
+            className="bg-gray-900 border border-gray-800 border-dashed rounded-lg p-3 space-y-2"
+          >
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
               placeholder="New portfolio name…"
-              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500" />
+              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
             <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
-              <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)}
-                className="accent-emerald-500" />
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                className="accent-emerald-500"
+              />
               Make public
             </label>
-            <button type="submit" disabled={creating}
-              className="w-full flex items-center justify-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-medium rounded px-2 py-1.5 transition-colors disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={creating}
+              className="w-full flex items-center justify-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-medium rounded px-2 py-1.5 transition-colors disabled:opacity-50"
+            >
               <Plus size={12} /> Create
             </button>
           </form>

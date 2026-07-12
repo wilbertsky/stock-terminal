@@ -18,13 +18,17 @@ export function Settings() {
   const [pwError, setPwError] = useState<string | null>(null);
 
   const [appVersion, setAppVersion] = useState<string | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "up-to-date" | "error">("idle");
+  const [updateStatus, setUpdateStatus] = useState<
+    "idle" | "checking" | "available" | "downloading" | "up-to-date" | "error"
+  >("idle");
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
 
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
-    getVersion().then(setAppVersion).catch(() => {});
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => {});
   }, []);
 
   // Sync input with fetched value on first load
@@ -47,7 +51,9 @@ export function Settings() {
     mutationFn: ({ cur, nw }: { cur: string; nw: string }) =>
       auth.changePassword(cur, nw),
     onSuccess: () => {
-      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
       setPwError(null);
       setPwSaved(true);
       setTimeout(() => setPwSaved(false), 3000);
@@ -100,8 +106,14 @@ export function Settings() {
   function changePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwError(null);
-    if (newPw.length < 8) { setPwError("Password must be at least 8 characters."); return; }
-    if (newPw !== confirmPw) { setPwError("Passwords don't match."); return; }
+    if (newPw.length < 8) {
+      setPwError("Password must be at least 8 characters.");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError("Passwords don't match.");
+      return;
+    }
     pwMut.mutate({ cur: currentPw, nw: newPw });
   }
 
@@ -123,7 +135,8 @@ export function Settings() {
         <div>
           <h3 className="text-sm font-semibold text-gray-300">Display Name</h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            Shown in Community instead of your email. Leave blank to stay anonymous.
+            Shown in Community instead of your email. Leave blank to stay
+            anonymous.
           </p>
         </div>
         <form onSubmit={saveName} className="flex gap-2">
@@ -144,7 +157,10 @@ export function Settings() {
           {nameInput && (
             <button
               type="button"
-              onClick={() => { setNameInput(""); nameMut.mutate(null); }}
+              onClick={() => {
+                setNameInput("");
+                nameMut.mutate(null);
+              }}
               className="text-xs text-gray-500 hover:text-gray-300 px-2 transition-colors"
             >
               Clear
@@ -152,23 +168,25 @@ export function Settings() {
           )}
         </form>
         {nameMut.isError && (
-          <p className="text-red-400 text-xs">{(nameMut.error as Error).message}</p>
+          <p className="text-red-400 text-xs">
+            {(nameMut.error as Error).message}
+          </p>
         )}
       </div>
 
       {/* Change password */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-300">Change Password</h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Minimum 8 characters.
-          </p>
+          <h3 className="text-sm font-semibold text-gray-300">
+            Change Password
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">Minimum 8 characters.</p>
         </div>
         <form onSubmit={changePassword} className="space-y-2">
           {[
             { label: "Current password", value: currentPw, set: setCurrentPw },
-            { label: "New password",     value: newPw,     set: setNewPw     },
-            { label: "Confirm new",      value: confirmPw, set: setConfirmPw },
+            { label: "New password", value: newPw, set: setNewPw },
+            { label: "Confirm new", value: confirmPw, set: setConfirmPw },
           ].map(({ label, value, set }) => (
             <input
               key={label}
@@ -217,7 +235,9 @@ export function Settings() {
           <h3 className="text-sm font-semibold text-gray-300">App Updates</h3>
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">Current version</span>
-            <span className="text-xs text-gray-400 font-mono">v{appVersion}</span>
+            <span className="text-xs text-gray-400 font-mono">
+              v{appVersion}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             {updateStatus !== "available" && updateStatus !== "downloading" && (
@@ -226,7 +246,9 @@ export function Settings() {
                 disabled={updateStatus === "checking"}
                 className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
               >
-                {updateStatus === "checking" ? "Checking…" : "Check for updates"}
+                {updateStatus === "checking"
+                  ? "Checking…"
+                  : "Check for updates"}
               </button>
             )}
             {updateStatus === "up-to-date" && (
@@ -263,15 +285,22 @@ export function Settings() {
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
         <h3 className="text-sm font-semibold text-gray-300">Data Sources</h3>
         <p className="text-xs text-gray-500">
-          Financial data is sourced from SEC EDGAR and Yahoo Finance.
-          These are free public sources — no API key required.
+          Financial data is sourced from SEC EDGAR and FMP. These are free
+          public sources — no API key required.
         </p>
         <div className="space-y-2 pt-1">
           {[
-            { name: "SEC EDGAR", detail: "Fundamentals (10-K filings)", status: "Active" },
-            { name: "Yahoo Finance", detail: "Prices & search", status: "Active" },
+            {
+              name: "SEC EDGAR",
+              detail: "Fundamentals (10-K filings)",
+              status: "Active",
+            },
+            { name: "FMP", detail: "Prices & search", status: "Active" },
           ].map(({ name, detail, status }) => (
-            <div key={name} className="flex items-center justify-between text-sm">
+            <div
+              key={name}
+              className="flex items-center justify-between text-sm"
+            >
               <div>
                 <span className="text-gray-300">{name}</span>
                 <span className="text-gray-600 text-xs ml-2">{detail}</span>
