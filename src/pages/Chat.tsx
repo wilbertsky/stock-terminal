@@ -209,7 +209,7 @@ export function Chat() {
             <div className="flex flex-wrap gap-2 justify-center mt-2">
               {[
                 "What financials look close to their Graham Number?",
-                "Any energy small-caps with strong Piotroski scores?",
+                "What's Apple's DCF intrinsic value and how does its current price compare?",
                 "What's the latest news on BOH?",
               ].map((prompt) => (
                 <button
