@@ -10,6 +10,7 @@ import {
   DividendMetricsResponse,
   CompanyProfile,
   CompanyNewsResponse,
+  PriceHistoryResponse,
 } from "../api/client";
 import { TickerTooltip } from "../components/TickerTooltip";
 import { CompanyLogo } from "../components/CompanyLogo";
@@ -21,6 +22,8 @@ import { PiotroskiGrid } from "../components/PiotroskiGrid";
 import { AddToPortfolioModal } from "../components/AddToPortfolioModal";
 import {
   ResponsiveContainer,
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   XAxis,
@@ -74,6 +77,161 @@ function debtSafetyScore(de: number | null): number | null {
   return de < 0.3 ? 100 : de < 0.6 ? 80 : de < 1.0 ? 60 : de < 1.5 ? 40 : de < 2.5 ? 20 : 5;
 }
 
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const PERIODS: { label: string; days: number }[] = [
+  { label: "1Y", days: 252 },
+  { label: "3Y", days: 756 },
+  { label: "5Y", days: 1260 },
+  { label: "10Y", days: 2520 },
+];
+
+/**
+ * Builds the tick list and formatter for the price history X axis.
+ *
+ * 1Y  — one tick per month (first trading day of each month).
+ *        January label includes the 2-digit year ("Jan '25"); other months show
+ *        name only. First tick omits year unless it falls in January. Last tick
+ *        never shows year.
+ *
+ * 3Y+ — one tick per year (first trading day of each year = first trading day
+ *        whose year differs from the previous tick). First tick is suppressed
+ *        unless it falls in January. Last tick is always suppressed.
+ */
+function buildXAxis(points: { date: string }[], periodDays: number) {
+  const is1Y = periodDays <= 252;
+  const ticks: string[] = [];
+  const seen = new Set<string>();
+
+  for (const p of points) {
+    const group = is1Y ? p.date.slice(0, 7) : p.date.slice(0, 4);
+    if (!seen.has(group)) {
+      seen.add(group);
+      ticks.push(p.date);
+    }
+  }
+
+  const tickSet = new Set(ticks);
+  const firstTick = ticks[0];
+  const lastTick = ticks[ticks.length - 1];
+
+  function formatter(v: string): string {
+    if (!tickSet.has(v)) return "";
+    const monthIdx = parseInt(v.slice(5, 7)) - 1;
+    const year = v.slice(0, 4);
+    const isJan = monthIdx === 0;
+    const isFirst = v === firstTick;
+    const isLast = v === lastTick;
+
+    if (is1Y) {
+      const name = MONTHS[monthIdx];
+      // Annotate January with short year, except on the last tick.
+      if (isJan && !isLast) return `${name} '${year.slice(2)}`;
+      return name;
+    } else {
+      // Multi-year: show the 4-digit year on January boundaries only.
+      if (isFirst && !isJan) return ""; // suppress non-January first tick
+      if (isLast) return "";            // always suppress last tick
+      return year;
+    }
+  }
+
+  return { ticks, formatter };
+}
+
+function PriceHistoryChart({ data }: { data: PriceHistoryResponse }) {
+  // Only show periods for which we have ≥85% of the required trading days
+  // (accounts for holidays/non-trading days and FMP plan data limits).
+  const availablePeriods = PERIODS.filter((p) => data.points.length >= p.days * 0.85);
+
+  const defaultPeriod = availablePeriods.find((p) => p.label === "5Y")
+    ?? availablePeriods[availablePeriods.length - 1];
+
+  const [periodDays, setPeriodDays] = useState(defaultPeriod?.days ?? 252);
+
+  const sliced = data.points.slice(-periodDays);
+  // Keep full YYYY-MM-DD so each point has a unique x position; ticks are
+  // selected by matching the first occurrence of each month/year boundary.
+  const chartData = sliced.map((p) => ({
+    date: p.date,
+    price: parseFloat(p.price.toFixed(2)),
+  }));
+
+  const { ticks, formatter } = buildXAxis(sliced, periodDays);
+
+  const minP = Math.min(...sliced.map((p) => p.price));
+  const maxP = Math.max(...sliced.map((p) => p.price));
+  const padding = (maxP - minP) * 0.05;
+
+  return (
+    <div>
+      {/* Period selector */}
+      <div className="flex gap-1 mb-3">
+        {availablePeriods.map((p) => (
+          <button
+            key={p.label}
+            onClick={() => setPeriodDays(p.days)}
+            className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${
+              periodDays === p.days
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                : "text-gray-500 hover:text-gray-300 border border-transparent"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <ResponsiveContainer width="100%" height={200}>
+        <AreaChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 0 }}>
+          <defs>
+            <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#34d399" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+          <XAxis
+            dataKey="date"
+            ticks={ticks}
+            tick={{ fill: "#6b7280", fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={formatter}
+          />
+          <YAxis
+            domain={[minP - padding, maxP + padding]}
+            tick={{ fill: "#6b7280", fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v) => `$${v.toFixed(0)}`}
+            width={52}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "#111827",
+              border: "1px solid #374151",
+              borderRadius: 8,
+              color: "#fff",
+              fontSize: 12,
+            }}
+            formatter={(v: unknown) => [`$${v}`, "Price"]}
+            labelFormatter={(l) => l}
+          />
+          <Area
+            type="monotone"
+            dataKey="price"
+            stroke="#34d399"
+            strokeWidth={1.5}
+            fill="url(#priceGrad)"
+            dot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 function RevenueChart({ years }: { years: SummaryResponse["fundamentals"]["years"] }) {
   const data = years
@@ -461,6 +619,14 @@ export function Search() {
     retry: false,
   });
 
+  const priceHistoryQ = useQuery<PriceHistoryResponse, Error>({
+    queryKey: ["price-history", ticker],
+    queryFn: () => stock.priceHistory(ticker!),
+    enabled: !!ticker,
+    staleTime: 24 * 60 * 60 * 1000, // daily EOD data — fine to cache all day
+    retry: false,
+  });
+
   function handleSelect(symbol: string) {
     setTicker(symbol.toUpperCase());
   }
@@ -589,6 +755,14 @@ export function Search() {
               onClose={() => setShowPortfolioModal(false)}
             />
           )}
+
+          {/* Price history chart */}
+          {priceHistoryQ.data?.points.length ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <h4 className="text-sm font-semibold text-gray-300 mb-3">Price History</h4>
+              <PriceHistoryChart data={priceHistoryQ.data} />
+            </div>
+          ) : null}
 
           {/* Scores */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
