@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { auth, portfolioApi, PortfolioRow } from "../api/client";
 import { StatCard } from "../components/StatCard";
+import { MarketSnapshotStrip } from "../components/MarketSnapshotStrip";
 import { BriefcaseBusiness, Search, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -25,6 +26,9 @@ export function Dashboard() {
           Quantitative stock analysis &amp; portfolio tracking
         </p>
       </div>
+
+      {/* Market snapshot strip */}
+      <MarketSnapshotStrip />
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

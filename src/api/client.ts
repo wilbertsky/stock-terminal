@@ -215,6 +215,40 @@ export interface SectorScreenerResponse {
   disclaimer: string;
 }
 
+// ── Market Snapshot ───────────────────────────────────────────────────────────
+
+export interface MarketQuote {
+  symbol: string;
+  /** Human-readable label, e.g. "S&P 500", "Technology" */
+  name: string;
+  price: number;
+  /** Day change in percent, e.g. 1.23 = +1.23% */
+  change_pct: number;
+  /** Day change in dollars */
+  change: number;
+}
+
+export interface MarketSnapshotResponse {
+  quotes: MarketQuote[];
+}
+
+export const marketApi = {
+  snapshot: () => request<MarketSnapshotResponse>("/api/market-snapshot"),
+};
+
+// ── Price History ─────────────────────────────────────────────────────────────
+
+export interface PricePoint {
+  date: string;
+  price: number;
+}
+
+export interface PriceHistoryResponse {
+  ticker: string;
+  /** Daily closes, oldest → newest */
+  points: PricePoint[];
+}
+
 export const screenerApi = {
   getSector: (sector: string) =>
     request<SectorScreenerResponse>(`/api/screener/${sector}`),
@@ -317,6 +351,8 @@ export const stock = {
     request<CompanyProfile>(`/api/stock/${ticker}/profile`),
   news: (ticker: string) =>
     request<CompanyNewsResponse>(`/api/stock/${ticker}/news`),
+  priceHistory: (ticker: string) =>
+    request<PriceHistoryResponse>(`/api/stock/${ticker}/price-history`),
 };
 
 // ── Portfolio ─────────────────────────────────────────────────────────────────
