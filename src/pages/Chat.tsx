@@ -10,8 +10,14 @@ interface Message extends ChatMessage {
   consistencyWarnings?: string[];
 }
 
-// Module-level store so history survives React Router unmounting this page.
+// Module-level store so history and in-progress jobs survive React Router unmounting this page.
 let chatHistory: Message[] = [];
+let pendingJob: {
+  jobId: string;
+  startedAt: number;
+  polls: number;
+  pendingMessages: Message[];
+} | null = null;
 
 function updateHistory(msgs: Message[]) {
   chatHistory = msgs;
@@ -26,24 +32,46 @@ function pollStatusText(elapsedSeconds: number): string {
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>(chatHistory);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => pendingJob !== null);
   const [error, setError] = useState<string | null>(null);
-  const [statusText, setStatusText] = useState("Researching…");
+  const [statusText, setStatusText] = useState(() =>
+    pendingJob
+      ? pollStatusText(Math.floor((Date.now() - pendingJob.startedAt) / 1000))
+      : "Researching…"
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
+  // Holds the latest startPolling fn so the mount effect can call it without stale closure issues.
+  const startPollingRef = useRef<
+    (jobId: string, startedAt: number, initialPolls: number, pendingMessages: Message[]) => void
+  >(null!);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Cancel polling on unmount (e.g. user navigates away mid-poll)
+  // On unmount: stop local timer but preserve pendingJob so we can resume on remount.
   useEffect(() => {
     return () => {
       cancelledRef.current = true;
       if (pollTimerRef.current !== null) clearTimeout(pollTimerRef.current);
     };
+  }, []);
+
+  // On mount: resume polling if a job was in-flight when the user navigated away.
+  useEffect(() => {
+    if (pendingJob) {
+      cancelledRef.current = false;
+      startPollingRef.current(
+        pendingJob.jobId,
+        pendingJob.startedAt,
+        pendingJob.polls,
+        pendingJob.pendingMessages,
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function setAndPersist(msgs: Message[]) {
@@ -52,11 +80,14 @@ export function Chat() {
   }
 
   function clearChat() {
+    pendingJob = null;
     setAndPersist([]);
     setError(null);
+    setLoading(false);
   }
 
   const cancelPolling = useCallback(() => {
+    pendingJob = null;
     cancelledRef.current = true;
     if (pollTimerRef.current !== null) {
       clearTimeout(pollTimerRef.current);
@@ -69,6 +100,67 @@ export function Chat() {
     setLoading(false);
     setError(null);
   }
+
+  // Extracted so both sendMessage and the resume-on-mount effect can use it.
+  startPollingRef.current = (
+    jobId: string,
+    startedAt: number,
+    initialPolls: number,
+    pendingMessages: Message[],
+  ) => {
+    let polls = initialPolls;
+
+    const poll = async () => {
+      if (cancelledRef.current) return;
+
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      setStatusText(pollStatusText(elapsed));
+
+      if (++polls > MAX_POLLS) {
+        pendingJob = null;
+        setError("Request timed out after 2 minutes. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Keep polls count current so a remount knows where to resume from.
+      if (pendingJob) pendingJob = { ...pendingJob, polls };
+
+      try {
+        const status = await chatApi.pollJob(jobId);
+        if (cancelledRef.current) return;
+
+        if (status.status === "completed") {
+          const assistantMsg: Message = {
+            role: "assistant",
+            content: status.answer ?? "(no response)",
+            consistencyWarnings: status.consistencyWarnings ?? [],
+          };
+          pendingJob = null;
+          setAndPersist([...pendingMessages, assistantMsg]);
+          setLoading(false);
+          return;
+        }
+
+        if (status.status === "failed") {
+          pendingJob = null;
+          setError(status.error ?? "The request failed. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+      } catch (err) {
+        if (!cancelledRef.current) {
+          pendingJob = null;
+          setError(err instanceof Error ? err.message : "Polling error. Please try again.");
+          setLoading(false);
+        }
+      }
+    };
+
+    void poll();
+  };
 
   async function sendMessage(e?: React.FormEvent) {
     e?.preventDefault();
@@ -96,7 +188,6 @@ export function Chat() {
     try {
       const data = await chatApi.send(question, history);
 
-      // Guard: if server somehow returns a completed answer synchronously
       if (data.status === "completed" && data.answer !== null) {
         const assistantMsg: Message = {
           role: "assistant",
@@ -108,55 +199,10 @@ export function Chat() {
         return;
       }
 
-      // Normal async path — poll for the result
       const { jobId } = data;
       const startedAt = Date.now();
-      let polls = 0;
-
-      const poll = async () => {
-        if (cancelledRef.current) return;
-
-        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-        setStatusText(pollStatusText(elapsed));
-
-        if (++polls > MAX_POLLS) {
-          setError("Request timed out after 2 minutes. Please try again.");
-          setLoading(false);
-          return;
-        }
-
-        try {
-          const status = await chatApi.pollJob(jobId);
-          if (cancelledRef.current) return;
-
-          if (status.status === "completed") {
-            const assistantMsg: Message = {
-              role: "assistant",
-              content: status.answer ?? "(no response)",
-              consistencyWarnings: status.consistencyWarnings ?? [],
-            };
-            setAndPersist([...nextMessages, assistantMsg]);
-            setLoading(false);
-            return;
-          }
-
-          if (status.status === "failed") {
-            setError(status.error ?? "The request failed. Please try again.");
-            setLoading(false);
-            return;
-          }
-
-          // Still pending or processing — schedule next tick
-          pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
-        } catch (err) {
-          if (!cancelledRef.current) {
-            setError(err instanceof Error ? err.message : "Polling error. Please try again.");
-            setLoading(false);
-          }
-        }
-      };
-
-      void poll();
+      pendingJob = { jobId, startedAt, polls: 0, pendingMessages: nextMessages };
+      startPollingRef.current(jobId, startedAt, 0, nextMessages);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
       setAndPersist(messages);
