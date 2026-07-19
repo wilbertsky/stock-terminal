@@ -77,6 +77,15 @@ function debtSafetyScore(de: number | null): number | null {
   return de < 0.3 ? 100 : de < 0.6 ? 80 : de < 1.0 ? 60 : de < 1.5 ? 40 : de < 2.5 ? 20 : 5;
 }
 
+function dividendQualityScore(dividend: DividendMetricsResponse | undefined): number | null {
+  if (!dividend || !dividend.dividend_per_share || dividend.dividend_per_share <= 0) return null;
+  const yld = dividend.dividend_yield_pct ?? 0;
+  const payout = dividend.payout_ratio ?? 1.0;
+  const yieldScore = yld >= 5 ? 50 : yld >= 4 ? 40 : yld >= 3 ? 30 : yld >= 1.5 ? 15 : 0;
+  const payoutScore = payout < 0.50 ? 30 : payout < 0.65 ? 25 : payout < 0.80 ? 15 : 0;
+  return Math.min(yieldScore + payoutScore, 100);
+}
+
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -805,10 +814,9 @@ export function Search() {
                 }
 
                 if (model === "Real Estate") {
-                  const yld = dividendQ.data?.dividend_yield_pct;
-                  const yldScore = yld != null && yld > 0 ? (yld >= 5 ? 90 : yld >= 4 ? 75 : yld >= 3 ? 55 : yld >= 2 ? 35 : 15) : null;
+                  const divScore = dividendQualityScore(dividendQ.data);
                   return <>
-                    {yldScore != null && <ScoreGauge score={yldScore} label="Div Yield" />}
+                    {divScore != null && <ScoreGauge score={divScore} label="Div Quality" />}
                     {pbScore(pb) != null && <ScoreGauge score={pbScore(pb)!} label="Price/Book" />}
                     <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
                     {debtSafetyScore(de) != null && <ScoreGauge score={debtSafetyScore(de)!} label="Debt Safety" />}
@@ -817,12 +825,11 @@ export function Search() {
 
                 // Dividend sectors
                 if (model === "Dividend") {
-                  const yld = dividendQ.data?.dividend_yield_pct;
-                  const yldScore = yld != null && yld > 0 ? (yld >= 5 ? 90 : yld >= 4 ? 75 : yld >= 3 ? 55 : yld >= 2 ? 35 : 15) : null;
+                  const divScore = dividendQualityScore(dividendQ.data);
                   return <>
                     <ScoreGauge score={s.momentum.momentum_score} label="Momentum" />
                     {p && <ScoreGauge score={p.score} max={9} label="Piotroski" />}
-                    {yldScore != null && <ScoreGauge score={yldScore} label="Div Yield" />}
+                    {divScore != null && <ScoreGauge score={divScore} label="Div Quality" />}
                   </>;
                 }
 

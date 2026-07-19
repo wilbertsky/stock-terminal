@@ -128,12 +128,22 @@ const TERMS: Term[] = [
     formula: "FCF Yield = FCF per Share ÷ Current Price",
   },
   {
+    id: "dividend-yield",
+    term: "Dividend Yield",
+    category: "core",
+    short: "The annual dividend payout as a percentage of the current stock price — the most visible dividend metric, but not the whole picture.",
+    detail:
+      "If a stock pays $2.00 per year in dividends and trades at $40, its dividend yield is 5%. This is the number most investors focus on because it directly represents the income return from holding the stock. However, yield alone can be misleading: a very high yield sometimes signals that the stock price has fallen sharply (which mechanically pushes yield up) rather than a genuinely generous payout. A company in distress can temporarily maintain a high yield before cutting the dividend. That's why yield is combined with payout ratio and sustainability measures in the Dividend Quality Score rather than used in isolation.",
+    formula: "Dividend Yield = Annual Dividend Per Share ÷ Current Stock Price",
+  },
+  {
     id: "dividend-quality",
     term: "Dividend Quality Score",
     category: "core",
-    short: "A 0–100 score measuring dividend sustainability and yield — used in the Consumer Staples, Utilities, and Real Estate models.",
+    short: "A 0–100 composite score measuring both the size and sustainability of a dividend — used in the Consumer Staples, Utilities, and Real Estate screener models.",
     detail:
-      "Combines dividend yield (higher is better up to a point) with payout ratio (lower is safer — room to grow the dividend). A payout ratio above 80% is flagged as stretched; below 60% is considered sustainable. For REITs, higher payout ratios are expected and scored accordingly since REITs are required to distribute at least 90% of taxable income.",
+      "This score is different from raw Dividend Yield. A stock can pay a high yield but score poorly if the payout ratio is dangerously high — or pay a modest yield but score well because the dividend is well-covered and growing. The score has two components: a yield component (≥5% = 50 pts, ≥4% = 40, ≥3% = 30, ≥1.5% = 15, otherwise 0) and a payout sustainability component (payout ratio <50% = 30 pts, <65% = 25, <80% = 15, ≥80% = 0). The two are summed, capped at 100. A company that pays no dividend scores 0. The score appears both in the Screener's sector rankings and on the Stock Analysis page for Dividend and Real Estate sector stocks.",
+    formula: "Score = Yield Score (0–50) + Payout Score (0–30), capped at 100",
   },
 
   // ── Acronyms & Ratios ────────────────────────────────────────────────────────
