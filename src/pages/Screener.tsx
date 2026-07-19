@@ -12,6 +12,7 @@ import {
 import { CompanyLogo } from "../components/CompanyLogo";
 import { AddToPortfolioModal } from "../components/AddToPortfolioModal";
 import { TickerTooltip } from "../components/TickerTooltip";
+import { SectionHelp } from "../components/SectionHelp";
 
 type Mode = "large-cap" | "discovery";
 
@@ -319,6 +320,11 @@ export function Screener() {
         <div className="flex items-center gap-2 mb-1">
           <TrendingUp size={18} className="text-emerald-400" />
           <h2 className="text-xl font-bold text-white">Screener</h2>
+          <SectionHelp title="How Screener Scores Work">
+            <p>All scores in the screener — Composite, DCF, Piotroski, Momentum, and any sector-specific sub-scores — are <span className="text-white font-medium">relative rankings</span> within the current screener run, normalized to a 0–100 scale.</p>
+            <p>A score of 100 means strongest in this group for that factor. It does <span className="text-white font-medium">not</span> mean the stock clears any absolute quality threshold — for example, a DCF score of 100 reflects the strongest earnings growth signal among peers, not that the stock is trading below its intrinsic value.</p>
+            <p>To evaluate a stock against absolute benchmarks — intrinsic value vs. current price, Piotroski pass/fail signals, Graham Number — use the <span className="text-white font-medium">Stock Analysis</span> page for that ticker.</p>
+          </SectionHelp>
         </div>
         <p className="text-gray-500 text-sm">
           {mode === "large-cap"
