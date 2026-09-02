@@ -13,6 +13,7 @@ import { AdminFeedback } from "./pages/AdminFeedback";
 import { CommunityPortfolios } from "./pages/CommunityPortfolios";
 import { Chat } from "./pages/Chat";
 import { Glossary } from "./pages/Glossary";
+import { AiPortfolio } from "./pages/AiPortfolio";
 import { auth } from "./api/client";
 
 const queryClient = new QueryClient({
@@ -45,6 +46,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/community" element={<CommunityPortfolios />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/ai-portfolio" element={<AiPortfolio />} />
           <Route path="/glossary" element={<Glossary />} />
           <Route path="/settings" element={<Settings />} />
           <Route

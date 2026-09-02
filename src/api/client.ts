@@ -499,6 +499,40 @@ export const communityApi = {
   list: () => request<PublicPortfolioSummary[]>("/api/community"),
 };
 
+// ── AI Portfolio ──────────────────────────────────────────────────────────────
+
+export interface AiHoldingDetail {
+  id: string;
+  ticker: string;
+  price_at_add: number;
+  shares: number | null;
+  added_at: string;
+  current_price: number;
+  return_pct: number;
+  sector: string | null;
+  composite_score_at_selection: number | null;
+  news_sentiment_at_selection: string | null;
+  selection_rationale: string | null;
+  cycle: string | null;
+}
+
+export interface AiPortfolioResponse {
+  portfolio_id: string;
+  name: string;
+  holdings: AiHoldingDetail[];
+  total_return_pct: number | null;
+  total_value: number;
+  total_invested: number;
+  current_cycle: string;
+  next_review: string;
+  quarterly_allocation: number;
+  disclaimer: string;
+}
+
+export const aiPortfolioApi = {
+  get: () => request<AiPortfolioResponse>("/api/ai-portfolio"),
+};
+
 // ── Chat (RAG proxy) ──────────────────────────────────────────────────────────
 
 export interface ChatMessage {

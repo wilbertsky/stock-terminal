@@ -13,6 +13,7 @@ import {
   X,
   Bot,
   BookOpen,
+  Cpu,
 } from "lucide-react";
 import { DisclaimerModal } from "./DisclaimerModal";
 import { FeedbackModal } from "./FeedbackModal";
@@ -31,6 +32,7 @@ const links = [
   { to: "/portfolio", icon: BriefcaseBusiness, label: "Portfolio" },
   { to: "/community", icon: Users, label: "Community" },
   { to: "/chat", icon: Bot, label: "AI Chat", beta: true },
+  { to: "/ai-portfolio", icon: Cpu, label: "AI Portfolio", beta: true },
   { to: "/glossary", icon: BookOpen, label: "Glossary" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ] as const;
