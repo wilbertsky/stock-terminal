@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   portfolioApi,
+  stock,
   PortfolioRow,
   PortfolioPerformanceResponse,
   HoldingPerformance,
@@ -365,6 +366,31 @@ function PortfolioDetail({ id }: { id: string }) {
     .filter((a) => a.total_shares > 0)
     .map((a) => ({ name: a.ticker, value: a.avg_cost * a.total_shares }));
 
+  // Sector donut — fetch profiles for all unique tickers in parallel
+  const uniqueTickers = aggregated.filter((a) => a.total_shares > 0).map((a) => a.ticker);
+  const sectorQ = useQuery({
+    queryKey: ["portfolio-sectors", id, uniqueTickers.join(",")],
+    queryFn: () => Promise.all(uniqueTickers.map((t) => stock.profile(t).catch(() => ({ ticker: t, sector: null })))),
+    enabled: uniqueTickers.length > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+
+  const sectorPieData = (() => {
+    if (!sectorQ.data) return [];
+    const valueByTicker: Record<string, number> = {};
+    for (const a of aggregated) {
+      if (a.total_shares > 0) valueByTicker[a.ticker] = a.avg_cost * a.total_shares;
+    }
+    const totals: Record<string, number> = {};
+    for (const profile of sectorQ.data) {
+      const sector = profile.sector ?? "Unknown";
+      totals[sector] = (totals[sector] ?? 0) + (valueByTicker[profile.ticker] ?? 0);
+    }
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => ({ name, value }));
+  })();
+
   return (
     <div className="space-y-5">
       {/* Summary stat cards */}
@@ -418,7 +444,7 @@ function PortfolioDetail({ id }: { id: string }) {
 
       {/* Charts */}
       {pieData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Allocation donut */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
             <h5 className="text-sm font-semibold text-gray-300 mb-3">
@@ -510,6 +536,47 @@ function PortfolioDetail({ id }: { id: string }) {
                   );
                 })}
             </div>
+          </div>
+
+          {/* Sector allocation donut */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <h5 className="text-sm font-semibold text-gray-300 mb-3">Sector Allocation</h5>
+            {sectorPieData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={sectorPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      dataKey="value"
+                      paddingAngle={3}
+                    >
+                      {sectorPieData.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {sectorPieData.map((d, i) => {
+                    const total = sectorPieData.reduce((s, x) => s + x.value, 0);
+                    return (
+                      <span key={d.name} className="flex items-center gap-1 text-xs text-gray-400">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                        {d.name} {total > 0 ? `${((d.value / total) * 100).toFixed(0)}%` : ""}
+                      </span>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-600 text-xs mt-2">
+                {sectorQ.isLoading ? "Loading sectors…" : "No sector data available."}
+              </p>
+            )}
           </div>
         </div>
       )}
