@@ -26,7 +26,7 @@ function fmt$(v: number) {
 }
 
 function SentimentBadge({ sentiment }: { sentiment: string | null }) {
-  if (!sentiment) return null;
+  if (!sentiment) return <span className="text-gray-600 text-xs">—</span>;
   const styles: Record<string, string> = {
     positive: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
     neutral:  "bg-gray-500/15 text-gray-400 border-gray-500/30",
@@ -96,7 +96,7 @@ function HoldingRow({ h }: { h: AiHoldingDetail }) {
       <td className="py-3 pl-3 pr-4">
         {h.cycle && <div className="text-[10px] text-gray-500 mb-0.5">{h.cycle}</div>}
         {h.selection_rationale && (
-          <div className="text-[10px] text-gray-400 max-w-xs truncate" title={h.selection_rationale}>
+          <div className="text-[10px] text-gray-400 max-w-[220px] leading-relaxed whitespace-normal">
             {h.selection_rationale}
           </div>
         )}
