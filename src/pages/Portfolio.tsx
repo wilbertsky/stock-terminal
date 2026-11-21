@@ -351,6 +351,18 @@ function PortfolioDetail({ id }: { id: string }) {
     }
   }
 
+  // Sector donut — fetch profiles for all unique tickers in parallel.
+  // Must stay above the early returns below (Rules of Hooks).
+  const uniqueTickers = aggregateHoldings(q.data?.holdings ?? [])
+    .filter((a) => a.total_shares > 0)
+    .map((a) => a.ticker);
+  const sectorQ = useQuery({
+    queryKey: ["portfolio-sectors", id, uniqueTickers.join(",")],
+    queryFn: () => Promise.all(uniqueTickers.map((t) => stock.profile(t).catch(() => ({ ticker: t, sector: null })))),
+    enabled: uniqueTickers.length > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+
   if (q.isLoading)
     return <p className="text-gray-400 text-sm py-4">Loading portfolio…</p>;
   if (q.isError)
@@ -365,15 +377,6 @@ function PortfolioDetail({ id }: { id: string }) {
   const pieData = aggregated
     .filter((a) => a.total_shares > 0)
     .map((a) => ({ name: a.ticker, value: a.avg_cost * a.total_shares }));
-
-  // Sector donut — fetch profiles for all unique tickers in parallel
-  const uniqueTickers = aggregated.filter((a) => a.total_shares > 0).map((a) => a.ticker);
-  const sectorQ = useQuery({
-    queryKey: ["portfolio-sectors", id, uniqueTickers.join(",")],
-    queryFn: () => Promise.all(uniqueTickers.map((t) => stock.profile(t).catch(() => ({ ticker: t, sector: null })))),
-    enabled: uniqueTickers.length > 0,
-    staleTime: 24 * 60 * 60 * 1000,
-  });
 
   const sectorPieData = (() => {
     if (!sectorQ.data) return [];
