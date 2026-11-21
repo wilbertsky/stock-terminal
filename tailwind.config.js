@@ -2,7 +2,11 @@
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      keyframes: {
+        "forecast-slide": { "0%": { transform: "translateX(-100%)" }, "100%": { transform: "translateX(300%)" } },
+      },
+    },
   },
   plugins: [],
 }

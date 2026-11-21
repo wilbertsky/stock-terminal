@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { stock, ForecastResponse } from "../api/client";
 import { SectionHelp } from "./SectionHelp";
 import {
@@ -31,6 +31,8 @@ export function ForecastSection({ ticker }: { ticker: string }) {
     queryFn: () => stock.forecast(ticker, days),
     staleTime: 24 * 60 * 60 * 1000, // EOD data
     retry: false,
+    // Keep the previous horizon's chart on screen while the next one loads.
+    placeholderData: keepPreviousData,
   });
 
   const f = q.data?.ticker === ticker ? q.data : undefined;
@@ -92,9 +94,18 @@ export function ForecastSection({ ticker }: { ticker: string }) {
       </div>
 
       {!f || !data || !end ? (
-        <div className="h-[200px] animate-pulse bg-gray-800/40 rounded-lg" />
+        <div className="h-[200px] animate-pulse bg-gray-800/40 rounded-lg flex items-center justify-center">
+          <span className="text-xs text-gray-600">Calculating forecast…</span>
+        </div>
       ) : (
-        <>
+        <div className="relative">
+          {/* Indeterminate progress bar while a new horizon loads */}
+          {q.isFetching && (
+            <div className="absolute -top-2 left-0 right-0 h-0.5 bg-gray-800 overflow-hidden rounded">
+              <div className="h-full w-1/3 bg-emerald-400 animate-[forecast-slide_1.1s_ease-in-out_infinite]" />
+            </div>
+          )}
+          <div className={`transition-opacity ${q.isFetching ? "opacity-50" : ""}`}>
           <ResponsiveContainer width="100%" height={200}>
             <ComposedChart data={data} margin={{ top: 4, right: 0, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -157,7 +168,8 @@ export function ForecastSection({ ticker }: { ticker: string }) {
                 f.backtest.coverage95 * 100
               ).toFixed(0)}% inside the 68% / 95% bands`}
           </p>
-        </>
+          </div>
+        </div>
       )}
     </div>
   );
