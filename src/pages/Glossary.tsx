@@ -8,7 +8,8 @@ type Category =
   | "models"
   | "piotroski"
   | "portfolio"
-  | "momentum";
+  | "momentum"
+  | "forecast";
 
 interface Term {
   id: string;
@@ -28,6 +29,7 @@ const CATEGORIES: { id: Category | "all"; label: string; color: string }[] = [
   { id: "piotroski",  label: "Piotroski",       color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
   { id: "portfolio",  label: "Portfolio",       color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
   { id: "momentum",   label: "Growth & Momentum", color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+  { id: "forecast",   label: "Price Forecast",  color: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
 ];
 
 function categoryStyle(cat: Category): string {
@@ -534,6 +536,41 @@ const TERMS: Term[] = [
     term: "ROIC Growth (CAGR)",
     category: "momentum",
     short: "Compound Annual Growth Rate of Return on Invested Capital — measuring whether capital efficiency is improving over time.",
+  },
+  // ── Price Forecast ──────────────────────────────────────────────────────────
+  {
+    id: "price-range-forecast",
+    term: "Price Range Forecast",
+    category: "forecast",
+    short: "A statistical range for where the price is likely to be in the future. It does not predict direction and is separate from the fundamental scores.",
+    detail:
+      "The forecast uses only the stock's own price history. It estimates how volatile the stock is right now, then spreads that uncertainty forward in time to draw a cone. The shaded 68% band is where the price should land roughly two times out of three; the 95% band, about nineteen times out of twenty. The cone widens with the square root of time, so a 12-month range is about 3.5× wider than a 1-month range, not 12×. Academic research on predicting the direction of a single stock (for example Gu, Kelly & Xiu, 2020, Review of Financial Studies) finds the edge is very small, which is why this feature forecasts a range rather than a target price. Treat it as a way to size risk, and keep the fundamental fair value as your anchor for whether a price is attractive.",
+    formula: "Range after t days = Price × exp(−σ²t/2 ± z·σ·√t)\nz = 1.00 for the 68% band, 1.96 for the 95% band\nσ = daily volatility (EWMA, see below)",
+  },
+  {
+    id: "ewma-volatility",
+    term: "EWMA Volatility",
+    category: "forecast",
+    short: "A volatility estimate that weights recent days more heavily than older ones, so it reacts when markets turn calm or wild.",
+    detail:
+      "Volatility is the standard deviation of daily log returns. Real markets show volatility clustering: turbulent periods are followed by more turbulence and quiet periods by quiet ones (Mandelbrot, 1963). Robert Engle's ARCH model (1982) formalised this and won the 2003 Nobel Memorial Prize in Economics; Tim Bollerslev generalised it to GARCH in 1986. The exponentially weighted moving average (EWMA) used here is the simplified form popularised by J.P. Morgan's RiskMetrics system (1996), which fixes the decay factor λ at 0.94 for daily data. It is equivalent to a GARCH(1,1) model with fixed parameters, so no fitting is required and it cannot be overfit. Each day's variance is 94% of yesterday's estimate plus 6% of the latest squared return, so the influence of a shock fades by about half every 11 trading days. Annualised volatility multiplies the daily figure by √252.",
+    formula: "σ²ₜ = 0.94 · σ²ₜ₋₁ + 0.06 · r²ₜ₋₁\nr = ln(Pₜ ÷ Pₜ₋₁)    Annualised σ = σ_daily × √252",
+  },
+  {
+    id: "lognormal-range",
+    term: "Lognormal Price Range (Geometric Brownian Motion)",
+    category: "forecast",
+    short: "The standard model that treats price changes as random percentage moves, which keeps prices above zero and makes the range slightly skewed upward.",
+    detail:
+      "Louis Bachelier first modelled prices as a random walk in 1900. Paul Samuelson (1965) argued that percentage returns, not dollar changes, are what behave randomly, giving geometric Brownian motion, and Fischer Black, Myron Scholes and Robert Merton (1973) built options pricing on it using Kiyoshi Itô's stochastic calculus. Under this model the log of the price is normally distributed, so the price itself is lognormal: it can never go below zero, and the upside range is wider in dollars than the downside. We set the drift so the expected future price equals today's price, which places the median slightly below the current price. The model describes how wide the range is, and says nothing about whether the stock will rise or fall. Its main weakness is that real returns have fatter tails than a normal curve, so extreme moves happen more often than the 95% band implies.",
+  },
+  {
+    id: "forecast-backtest",
+    term: "Backtest Coverage",
+    category: "forecast",
+    short: "How often past forecasts, made using only the data available at the time, actually contained the price that followed.",
+    detail:
+      "A forecast range is only useful if it is calibrated: the 68% band should contain the real outcome about 68% of the time, and the 95% band about 95%. The backtest steps back through the stock's history, makes a forecast at each date using only prior prices (no look-ahead), and counts how many realised prices fell inside each band. The same idea underlies Kupiec's (1995) coverage test and Christoffersen's (1998) evaluation of interval forecasts in risk management. Windows overlap, so the sample count overstates independent evidence. Coverage well below the target, as often seen for strongly trending stocks over longer horizons, means the bands are too narrow and the real risk is higher than shown. Coverage near the target means the range can be taken at face value for that stock.",
   },
 ];
 
