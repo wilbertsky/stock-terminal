@@ -81,10 +81,7 @@ export function MarketSnapshotStrip() {
           <div className="grid grid-cols-3 gap-3">
             {[0, 1, 2].map((i) => <SkeletonCard key={i} large />)}
           </div>
-          <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: "repeat(11, minmax(0, 1fr))" }}
-          >
+          <div className="grid grid-cols-6 lg:grid-cols-11 gap-2">
             {Array.from({ length: 11 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         </>
@@ -107,10 +104,7 @@ export function MarketSnapshotStrip() {
             <p className="text-[10px] text-gray-700 uppercase tracking-widest mb-1.5">
               Sectors
             </p>
-            <div
-              className="grid gap-2"
-              style={{ gridTemplateColumns: "repeat(11, minmax(0, 1fr))" }}
-            >
+            <div className="grid grid-cols-6 lg:grid-cols-11 gap-2">
               {data.quotes
                 .filter((q) => !INDEX_SYMBOLS.has(q.symbol))
                 .map((q) => <SectorCard key={q.symbol} q={q} />)}
