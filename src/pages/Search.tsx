@@ -17,6 +17,7 @@ import { CompanyLogo } from "../components/CompanyLogo";
 import { SectionHelp } from "../components/SectionHelp";
 import { StockAutocomplete } from "../components/StockAutocomplete";
 import { StatCard } from "../components/StatCard";
+import { ForecastSection } from "../components/ForecastSection";
 import { ScoreGauge } from "../components/ScoreGauge";
 import { PiotroskiGrid } from "../components/PiotroskiGrid";
 import { AddToPortfolioModal } from "../components/AddToPortfolioModal";
@@ -772,6 +773,9 @@ export function Search() {
               <PriceHistoryChart data={priceHistoryQ.data} />
             </div>
           ) : null}
+
+          {/* Price range forecast (price-only, separate from fundamentals) */}
+          <ForecastSection ticker={s.ticker} />
 
           {/* Scores */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">

@@ -249,6 +249,33 @@ export interface PriceHistoryResponse {
   points: PricePoint[];
 }
 
+export interface ForecastBand {
+  day: number;
+  lo95: number;
+  lo68: number;
+  median: number;
+  hi68: number;
+  hi95: number;
+}
+
+export interface ForecastBacktest {
+  horizon_days: number;
+  samples: number;
+  coverage68: number;
+  coverage95: number;
+}
+
+export interface ForecastResponse {
+  ticker: string;
+  last_price: number;
+  last_date: string;
+  horizon_days: number;
+  daily_vol: number;
+  annual_vol: number;
+  bands: ForecastBand[];
+  backtest: ForecastBacktest | null;
+}
+
 export const screenerApi = {
   getSector: (sector: string) =>
     request<SectorScreenerResponse>(`/api/screener/${sector}`),
@@ -353,6 +380,8 @@ export const stock = {
     request<CompanyNewsResponse>(`/api/stock/${ticker}/news`),
   priceHistory: (ticker: string) =>
     request<PriceHistoryResponse>(`/api/stock/${ticker}/price-history`),
+  forecast: (ticker: string, days: number) =>
+    request<ForecastResponse>(`/api/stock/${ticker}/forecast?days=${days}`),
 };
 
 // ── Portfolio ─────────────────────────────────────────────────────────────────
